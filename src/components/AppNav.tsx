@@ -13,11 +13,13 @@ export function AppNav({ user }: { user: NavUser }) {
   const links =
     user?.role === "student"
       ? [
+          { href: "/cabinet", label: "Кабинет" },
           { href: "/learn", label: "Домашка" },
           { href: "/bank", label: "Практика" },
         ]
       : user
         ? [
+            { href: "/cabinet", label: "Кабинет" },
             { href: "/teach", label: "Классы" },
             { href: "/bank", label: "Банк задач" },
           ]

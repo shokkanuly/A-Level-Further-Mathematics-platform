@@ -284,6 +284,78 @@ await withPool(async (pool) => {
     );
   }
 
+  // ── комната класса, объявление и событие ──────────────────────────────────
+  // Комната заводится вместе с классом (010): «создать при первом заходе» —
+  // это гонка, которая однажды сделает две комнаты на один класс.
+  await q(
+    `insert into chat_room (kind, class_id, name) values ('class', $1, $2)
+     on conflict (class_id) where class_id is not null do nothing`,
+    [klass.id, "11А · Further Maths"],
+  );
+
+  const hasAnn = await one(`select id from announcement limit 1`);
+  if (!hasAnn) {
+    await q(
+      `insert into announcement (scope, class_id, author_id, title, body_md, pinned)
+       values ('class', $1, $2, $3, $4, true)`,
+      [
+        klass.id,
+        teacher.id,
+        "Разбор матриц в четверг",
+        "Кто не понял композицию преобразований — приходите.\n\nЗаранее прорешайте пункт (d): именно там путают $\\vect{NM}$ и $\\vect{MN}$.",
+      ],
+    );
+    await q(
+      `insert into event (scope, class_id, title, description_md, starts_at, location, created_by)
+       values ('class', $1, $2, $3, now() + interval '3 days', $4, $5)`,
+      [
+        klass.id,
+        "Консультация по Core Pure 1",
+        "Матрицы и комплексные числа. Приносите вопросы по домашке.",
+        "Кабинет 204",
+        teacher.id,
+      ],
+    );
+  }
+
+  // ── урок с видео и конспектом ─────────────────────────────────────────────
+  const hasLesson = await one(`select id from lesson limit 1`);
+  if (!hasLesson) {
+    const lesson = await one(
+      `insert into lesson (class_id, program_id, title, summary_md,
+                           video_provider, video_id, conspectus_md,
+                           position, created_by, published_at)
+       values ($1,$2,$3,$4,$5,$6,$7,1,$8, now()) returning id`,
+      [
+        klass.id,
+        "alevel-further",
+        "Матрицы как преобразования плоскости",
+        "Откуда берётся матрица поворота и почему порядок умножения важен.",
+        "youtube",
+        // Ролик 3Blue1Brown про линейные преобразования: идентификатор,
+        // а не ссылка — адрес для iframe собирает src/lib/video.ts.
+        "kYB8IZa5AuE",
+        `Матрица преобразования — это **таблица образов базисных векторов**, и всё остальное отсюда следует.
+
+Возьмём $\\vect{M} = \\begin{pmatrix} 0 & -1 \\\\ 1 & 0 \\end{pmatrix}$. Первый столбец — образ вектора $\\begin{pmatrix}1\\\\0\\end{pmatrix}$, второй — образ $\\begin{pmatrix}0\\\\1\\end{pmatrix}$. Проверяем: $\\begin{pmatrix}1\\\\0\\end{pmatrix} \\mapsto \\begin{pmatrix}0\\\\1\\end{pmatrix}$, $\\begin{pmatrix}0\\\\1\\end{pmatrix} \\mapsto \\begin{pmatrix}-1\\\\0\\end{pmatrix}$. Оба повернулись на $90^\\circ$ против часовой стрелки.
+
+**Почему порядок важен.** Запись «сначала $T$, потом $S$» означает $S(T(x))$, то есть произведение $\\vect{SM}$, а не $\\vect{MS}$. Матрицы применяются к вектору справа налево — так же, как читается композиция функций.
+
+- поворот на $\\theta$: $\\begin{pmatrix} \\cos\\theta & -\\sin\\theta \\\\ \\sin\\theta & \\cos\\theta \\end{pmatrix}$;
+- отражение относительно $y = x$: $\\begin{pmatrix} 0 & 1 \\\\ 1 & 0 \\end{pmatrix}$;
+- растяжение в $k$ раз: $k\\vect{I}$.
+
+**Что проверять на экзамене.** Если определитель равен $-1$, преобразование меняет ориентацию — это отражение, а не поворот. Определитель $1$ и матрица не единичная — поворот.`,
+        teacher.id,
+      ],
+    );
+    await q(
+      `insert into lesson_concept (lesson_id, concept_id) values ($1,$2), ($1,$3)
+       on conflict do nothing`,
+      [lesson.id, ids["matrix-transformations"], ids["matrix-multiplication"]],
+    );
+  }
+
   // ── итог ──────────────────────────────────────────────────────────────────
   const count = async (sql) => (await one(sql)).n;
 

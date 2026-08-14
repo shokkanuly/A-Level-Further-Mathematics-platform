@@ -5,6 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 
 export type NavUser = { display_name: string; role: string } | null;
 
+/** Роль подписывается по-русски: раньше «админ» показывался как «учитель». */
+const ROLE_LABEL: Record<string, string> = {
+  student: "ученик",
+  teacher: "учитель",
+  author: "автор",
+  reviewer: "ревьюер",
+  admin: "админ",
+};
+
 /** Шапка приложения: разделы зависят от роли, выход — POST, а не ссылка. */
 export function AppNav({ user }: { user: NavUser }) {
   const path = usePathname();
@@ -16,13 +25,18 @@ export function AppNav({ user }: { user: NavUser }) {
           { href: "/cabinet", label: "Кабинет" },
           { href: "/learn", label: "Домашка" },
           { href: "/bank", label: "Практика" },
+          { href: "/lessons", label: "Уроки" },
+          { href: "/events", label: "События" },
         ]
       : user
         ? [
             { href: "/cabinet", label: "Кабинет" },
             { href: "/teach", label: "Классы" },
-            { href: "/bank", label: "Банк задач" },
+            { href: "/bank", label: "Банк" },
             { href: "/author", label: "Своя задача" },
+            { href: "/lessons", label: "Уроки" },
+            { href: "/events", label: "События" },
+            ...(user.role === "admin" ? [{ href: "/admin", label: "Админка" }] : []),
           ]
         : [{ href: "/bank", label: "Банк задач" }];
 
@@ -58,7 +72,7 @@ export function AppNav({ user }: { user: NavUser }) {
           <>
             <span className="nav-user">
               {user.display_name}
-              <span>{user.role === "student" ? "ученик" : "учитель"}</span>
+              <span>{ROLE_LABEL[user.role] ?? user.role}</span>
             </span>
             <button className="btn btn-ghost btn-sm" onClick={logout}>
               Выйти

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { withTransaction, query } from "@/lib/db";
 import { createItem } from "../../../../db/seed-items.mjs";
-import { renderRich } from "@/lib/tex.mjs";
+import { renderRich, DEFAULT_MACROS } from "@/lib/tex.mjs";
 
 /**
  * POST /api/author — проверка и публикация авторской задачи (§9, миграция 008).
@@ -101,7 +101,7 @@ function preflight(body: Body): Problem[] {
   for (const [where, src] of texts) {
     if (!src) continue;
     try {
-      renderRich(src, {}, true);
+      renderRich(src, DEFAULT_MACROS, true);
     } catch (err) {
       problems.push(
         bad("LATEX_BROKEN", `${where}: ${(err as Error).message.split("\n")[0]}`),

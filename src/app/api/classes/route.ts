@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { newJoinCode } from "@/lib/auth.mjs";
+import { ensureClassRoom } from "@/lib/community";
 
 /** POST /api/classes  { name }  — учитель создаёт класс. */
 export async function POST(req: Request) {
@@ -26,6 +27,12 @@ export async function POST(req: Request) {
        returning id, join_code`,
       [user.id, name, code],
     );
+
+    // Комната заводится вместе с классом, а не при первом заходе в чат:
+    // «создать, если нет» в обработчике — гонка, а уникальный индекс из 010
+    // превратил бы её в 500 у того, кто нажал вторым.
+    if (created) await ensureClassRoom(created.id, name);
+
     return NextResponse.json(created);
   }
   return NextResponse.json({ error: "CODE_COLLISION" }, { status: 500 });

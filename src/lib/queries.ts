@@ -12,21 +12,68 @@ export type Board = {
   notation_profile: Macros;
 };
 
+/**
+ * Комиссии с кодом одной из их квалификаций.
+ *
+ * distinct on обязателен с миграции 008: у Edexcel теперь две квалификации
+ * (9MA0 и 9FM0), и обычный join отдавал Edexcel дважды — переключатель
+ * комиссий рисовал две одинаковые кнопки.
+ */
+// distinct on требует, чтобы order by начинался с ключа дедупликации, поэтому
+// порядок показа задаётся снаружи. Иначе комиссии сортируются по id, то есть
+// по алфавиту, и Cambridge встаёт перед Pearson — ровно та проблема,
+// ради которой в 005 появился board.position.
 export async function listBoards(): Promise<Board[]> {
   return query<Board>(`
-    select b.id, b.name, b.notation_profile, q.code as qualification_code
-    from board b
-    join qualification q on q.board_id = b.id
+    select * from (
+      select distinct on (b.id)
+             b.id, b.name, b.notation_profile, q.code as qualification_code, b.position
+      from board b
+      join qualification q on q.board_id = b.id
+      order by b.id, q.code
+    ) b
     order by b.position, b.id
   `);
 }
 
 export async function getBoard(id: string): Promise<Board | null> {
   return queryOne<Board>(
-    `select b.id, b.name, b.notation_profile, q.code as qualification_code
+    `select distinct on (b.id) b.id, b.name, b.notation_profile, q.code as qualification_code
      from board b join qualification q on q.board_id = b.id
-     where b.id = $1`,
+     where b.id = $1
+     order by b.id, q.code`,
     [id],
+  );
+}
+
+/**
+ * Комиссии, под которыми эту задачу вообще можно открыть.
+ *
+ * Тот же обратный обход, что и в валидаторе банка: концепты задачи → пункты
+ * спецификаций → комиссии. Показывать переключатель на все четыре комиссии
+ * нельзя — у College Board нет \vect, и задача Core Pure под его профилем
+ * не отрендерится.
+ */
+export async function boardsForItemVersion(
+  versionId: string,
+  programId?: string,
+): Promise<Board[]> {
+  return query<Board>(
+    `select * from (
+       select distinct on (b.id)
+              b.id, b.name, b.notation_profile, q.code as qualification_code, b.position
+       from item_concept ic
+       join concept_spec_point csp on csp.concept_id = ic.concept_id
+       join spec_point sp on sp.id = csp.spec_point_id
+       join unit u on u.id = sp.unit_id
+       join qualification q on q.id = u.qualification_id
+       join board b on b.id = q.board_id
+       where ic.item_version_id = $1
+         and ($2::text is null or q.program_id = $2)
+       order by b.id, q.code
+     ) b
+     order by b.position, b.id`,
+    [versionId, programId ?? null],
   );
 }
 

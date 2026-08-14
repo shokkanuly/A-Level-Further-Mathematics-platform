@@ -91,6 +91,13 @@ await withPool(async (pool) => {
          where s.item_version_id = $1`,
         [v.id],
       )),
+      // Разбор (008). Формула, не собравшаяся здесь, ломает ровно ту страницу,
+      // ради которой вид «практикум» и требует разбора.
+      ...(await q(
+        `select 'разбор' src, explanation_md text
+         from item_version where id = $1 and explanation_md is not null`,
+        [v.id],
+      )),
     ];
 
     let texErrors = 0;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/db";
 import { solutionGate } from "@/lib/solution-gate";
 import { getBoard } from "@/lib/queries";
-import { renderTex, macrosFor } from "@/lib/tex.mjs";
+import { renderTex, renderRich, macrosFor } from "@/lib/tex.mjs";
 
 /**
  * GET /api/items/{slug}/solution?locale=ru&board=edexcel&attempt_id=…
@@ -28,9 +28,16 @@ export async function GET(
     return NextResponse.json({ error: gate.reason }, { status: 403 });
   }
 
-  const version = await queryOne<{ id: string }>(
-    `select iv.id from item i
+  const version = await queryOne<{
+    id: string;
+    explanation_md: string | null;
+    kind: string;
+    kind_name: string;
+  }>(
+    `select iv.id, iv.explanation_md, iv.kind, k.name_ru as kind_name
+     from item i
      join item_version iv on iv.item_id = i.id and iv.status = 'published'
+     join item_kind k on k.id = iv.kind
      where i.slug = $1`,
     [slug],
   );
@@ -66,6 +73,14 @@ export async function GET(
     slug,
     locale,
     reason: gate.reason,
+    kind: version.kind,
+    kind_name: version.kind_name,
+    // Разбор целиком (008) едет тем же ответом и через тот же гейт, что схема
+    // оценивания. Отдавать его раньше нельзя ровно по той же причине:
+    // в практикуме разбор — это и есть решение, а не комментарий к нему.
+    explanation_html: version.explanation_md
+      ? renderRich(version.explanation_md, macros)
+      : null,
     steps: steps.map((s) => ({
       path: s.path,
       mark_code: s.mark_code,

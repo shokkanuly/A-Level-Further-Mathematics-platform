@@ -1006,3 +1006,165 @@ h1 {
 
   .site-footer nav { margin-left: 0; }
 }
+
+/* ═══ витрина программ и фильтры банка (008) ═══════════════════════════════
+   Четыре блока — это первое, что видит человек в банке, и единственное
+   место, где программа показана как объект, а не как параметр фильтра.
+   Поэтому карточка крупная и с собственным цветом: выбор программы —
+   не «уточнение», а развилка. */
+
+.programs {
+  display: grid; gap: 16px; margin: 28px 0 34px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.program-card {
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  padding: 24px 24px 20px;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--surface); box-shadow: var(--sh-xs);
+  text-decoration: none; color: inherit; overflow: hidden;
+  transition: transform var(--calm), box-shadow var(--calm), border-color var(--calm);
+}
+/* Заливка проявляется при наведении, а не лежит постоянно: четыре
+   насыщенных плитки рядом соревнуются друг с другом и ни одна не читается. */
+.program-card::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(140deg,
+    color-mix(in oklab, var(--accent) 8%, transparent), transparent 62%);
+  opacity: 0; transition: opacity var(--calm); pointer-events: none;
+}
+.program-card:hover {
+  transform: translateY(-4px); box-shadow: var(--sh-lg);
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+}
+.program-card:hover::after { opacity: 1; }
+.program-card:active { transform: translateY(-1px); }
+
+.program-card-head { display: flex; align-items: center; justify-content: space-between; }
+.program-mark {
+  width: 30px; height: 30px; border-radius: 9px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+  position: relative;
+}
+.program-mark::before {
+  content: ""; position: absolute; inset: 8px;
+  border-radius: 3px; background: var(--accent);
+}
+.program-count {
+  display: flex; align-items: baseline; gap: 5px;
+  font-family: var(--mono); font-size: 19px; font-weight: 600; color: var(--accent);
+}
+.program-count span { font-family: var(--sans); font-size: 11.5px; color: var(--ink-3); font-weight: 500; }
+
+.program-name { font-family: var(--display); font-size: 25px; line-height: 1.15; letter-spacing: -0.01em; }
+.program-tagline { font-size: 14px; color: var(--ink-2); line-height: 1.5; flex: 1; }
+.program-go {
+  margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--accent);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.program-go span { transition: transform var(--swift); }
+.program-card:hover .program-go span { transform: translateX(4px); }
+
+.program-head { margin-bottom: 22px; }
+.program-head h1 { margin: 4px 0 0; }
+.program-head .lede { margin-top: 10px; }
+
+/* ── фильтры ─────────────────────────────────────────────────────────────
+   Счётчик у каждого варианта отвечает на вопрос «а там вообще что-нибудь
+   есть» до клика. Вариант с нулём в список не попадает вовсе (см. SQL). */
+
+.facets {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 20px; margin-bottom: 26px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.facet-group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.facet-title {
+  flex: 0 0 118px; font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+}
+.facet-options { display: flex; flex-wrap: wrap; gap: 7px; flex: 1; min-width: 0; }
+
+.facet-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; text-decoration: none;
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--line);
+  transition: background var(--swift), color var(--swift), border-color var(--swift);
+}
+.facet-chip:hover { border-color: var(--line-strong); color: var(--ink); }
+.facet-chip[data-on="true"] {
+  background: var(--action); color: var(--action-fg); border-color: var(--action);
+}
+.facet-count {
+  font-family: var(--mono); font-size: 11px; opacity: 0.62;
+}
+
+.facet-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 12px; border-top: 1px dashed var(--line-strong);
+  font-size: 13px; color: var(--ink-2);
+}
+.facet-foot strong { color: var(--ink); font-family: var(--mono); }
+.facet-reset { font-size: 13px; color: var(--ink-2); }
+.facet-reset:hover { color: var(--bad); }
+
+/* ── вид задачи на карточке ──────────────────────────────────────────────
+   Вид — не тема, поэтому цвет берётся не из семейства концептов: иначе
+   «практикум» и «матрицы» спорили бы за один и тот же бирюзовый. */
+
+.chip-kind { font-weight: 600; }
+.chip-kind[data-kind="theory"] {
+  background: var(--c-decision-soft); color: var(--c-decision);
+  border-color: color-mix(in oklab, var(--c-decision) 28%, transparent);
+}
+.chip-kind[data-kind="practicum"] {
+  background: var(--c-statistics-soft); color: var(--c-statistics);
+  border-color: color-mix(in oklab, var(--c-statistics) 28%, transparent);
+}
+.chip-kind[data-kind="exam"] {
+  background: var(--brass-soft); color: var(--brass); border-color: var(--brass-line);
+}
+.chip-kind[data-kind="olympiad"] {
+  background: var(--c-complex-soft); color: var(--c-complex);
+  border-color: color-mix(in oklab, var(--c-complex) 28%, transparent);
+}
+
+@media (max-width: 720px) {
+  .programs { grid-template-columns: 1fr; gap: 13px; }
+  .program-card { padding: 20px 18px 17px; }
+  .program-name { font-size: 22px; }
+  .facets { padding: 15px 14px; }
+  /* На узком экране подпись группы встаёт над вариантами: 118px слева
+     съедали половину строки и чипы переносились по одному. */
+  .facet-group { flex-direction: column; align-items: stretch; gap: 7px; }
+  .facet-title { flex-basis: auto; }
+}
+
+/* ── разбор задачи (008) ───────────────────────────────────────────────────
+   Отличается от схемы оценивания намеренно: схема — таблица кодов, разбор —
+   связный текст. Одинаковое оформление заставило бы читать их одинаково,
+   а читают их с разными вопросами. */
+
+.explanation {
+  margin-top: 26px;
+  border: 1px solid var(--brass-line); border-radius: var(--r-lg);
+  background: var(--brass-soft); overflow: hidden;
+}
+.explanation .solution-head { border-bottom-color: var(--brass-line); }
+.explanation-body {
+  padding: 20px 24px; font-size: 15.5px; line-height: 1.72; color: var(--ink);
+}
+.explanation-body p { margin: 0 0 14px; }
+.explanation-body p:last-child { margin-bottom: 0; }
+.explanation-body strong { font-weight: 600; }
+/* Формулы внутри абзаца не должны растягивать строку. */
+.explanation-body .katex-display { margin: 14px 0; overflow-x: auto; overflow-y: hidden; }
+
+@media (max-width: 720px) {
+  .explanation-body { padding: 16px 15px; font-size: 15px; }
+}

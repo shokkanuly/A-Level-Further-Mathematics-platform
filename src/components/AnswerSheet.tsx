@@ -40,6 +40,7 @@ export function AnswerSheet({
   totalMarks,
   stemHtml,
   locale,
+  boardId,
   assignmentId = null,
   canAnswer = true,
 }: {
@@ -48,6 +49,8 @@ export function AnswerSheet({
   totalMarks: number;
   stemHtml: string;
   locale: string;
+  /** Комиссия, под чьим профилем обозначений собирать разбор. */
+  boardId: string | null;
   /** Задан — попытка создаётся в контексте домашки, и разбор решает сервер. */
   assignmentId?: string | null;
   canAnswer?: boolean;
@@ -57,6 +60,7 @@ export function AnswerSheet({
   const [verdicts, setVerdicts] = useState<Record<string, Verdict>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [steps, setSteps] = useState<Step[] | null>(null);
+  const [explanation, setExplanation] = useState<{ html: string; kind: string } | null>(null);
   const [stepsError, setStepsError] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -115,7 +119,10 @@ export function AnswerSheet({
     setStepsError(null);
     const params = new URLSearchParams({ locale });
     if (attemptId) params.set("attempt_id", attemptId);
-    params.set("board", new URLSearchParams(window.location.search).get("board") ?? "edexcel");
+    // Комиссию решает сервер и передаёт пропом. Раньше здесь стоял литерал
+    // 'edexcel' — после появления SAT и школьного блока он означал бы
+    // «собери разбор школьной задачи под профилем Edexcel».
+    if (boardId) params.set("board", boardId);
 
     const res = await fetch(`/api/items/${slug}/solution?${params}`);
     if (!res.ok) {
@@ -123,7 +130,13 @@ export function AnswerSheet({
       setStepsError(data.error ?? `HTTP ${res.status}`);
       return;
     }
-    setSteps((await res.json()).steps);
+    const data = await res.json();
+    setSteps(data.steps);
+    setExplanation(
+      data.explanation_html
+        ? { html: data.explanation_html, kind: data.kind_name ?? "" }
+        : null,
+    );
   }
 
   const chipState = (part: ClientPart) => {
@@ -268,6 +281,23 @@ export function AnswerSheet({
           <span>
             {stepsError} — решение принимает сервер, а не интерфейс.
           </span>
+        </div>
+      )}
+
+      {/* Разбор идёт ПЕРЕД схемой оценивания: схема отвечает на вопрос
+          «за что дали балл», а разбор — «как это вообще решается».
+          Для теории и практикума второй вопрос главный, и ответ на него
+          не должен лежать ниже трёх экранов кодов M1/A1. */}
+      {explanation && (
+        <div className="explanation">
+          <div className="solution-head">
+            <span className="solution-title">Разбор</span>
+            {explanation.kind && <span className="solution-sub">{explanation.kind}</span>}
+          </div>
+          <div
+            className="explanation-body"
+            dangerouslySetInnerHTML={{ __html: explanation.html }}
+          />
         </div>
       )}
 

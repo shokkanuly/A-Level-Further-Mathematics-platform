@@ -22,6 +22,7 @@ export function AppNav({ user }: { user: NavUser }) {
             { href: "/cabinet", label: "Кабинет" },
             { href: "/teach", label: "Классы" },
             { href: "/bank", label: "Банк задач" },
+            { href: "/author", label: "Своя задача" },
           ]
         : [{ href: "/bank", label: "Банк задач" }];
 

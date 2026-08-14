@@ -1235,3 +1235,103 @@ h1 {
   .recent-row { flex-wrap: wrap; }
   .recent-title { flex-basis: 100%; }
 }
+
+/* ═══ авторский конвейер ═══════════════════════════════════════════════════
+   Форма ничего не решает: она собирает структуру и показывает заранее то,
+   что всё равно скажет SQL. Поэтому «сумма шагов / баллы пункта» рядом
+   с полями — не валидация, а зеркало: автор видит расхождение до отправки,
+   но запрещает публикацию всё равно база. */
+
+.author textarea,
+.author select {
+  width: 100%; padding: 11px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink);
+  font-size: 15px; font-family: var(--sans);
+  transition: border-color var(--swift), box-shadow var(--swift);
+}
+.author textarea {
+  font-family: var(--mono); font-size: 13.5px; line-height: 1.6;
+  resize: vertical; min-height: 64px;
+}
+.author select { height: 44px; padding: 0 12px; }
+.author textarea:hover, .author select:hover { border-color: var(--line-strong); }
+.author textarea:focus, .author select:focus {
+  outline: none; border-color: var(--brass);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brass) 18%, transparent);
+}
+
+/* ── выбор вида ─────────────────────────────────────────────────────────
+   Вид задачи выбирается карточками, а не выпадающим списком: от него
+   зависит, обязателен ли разбор, и это должно быть видно ДО выбора. */
+.kind-pick { display: grid; gap: 9px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.kind-option {
+  display: flex; flex-direction: column; gap: 5px; text-align: left;
+  padding: 13px 15px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; transition: border-color var(--swift), background var(--swift);
+}
+.kind-option:hover { border-color: var(--line-strong); }
+.kind-option[data-on="true"] { border-color: var(--brass); background: var(--brass-soft); }
+.kind-name { font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kind-req {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--bad-soft); color: var(--bad); border: 1px solid var(--bad-line);
+}
+.kind-desc { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
+
+.concept-pick { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.concept-group-name {
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px;
+}
+
+.option-edit { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.option-edit input {
+  flex: 1; height: 40px; padding: 0 13px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); font-size: 14.5px;
+}
+.option-edit .option-letter { cursor: pointer; }
+.option-edit .option-letter[data-on="true"] {
+  background: var(--ok); border-color: var(--ok); color: #fff;
+}
+
+.scheme-sum {
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  margin-left: 9px; padding: 2px 8px; border-radius: 999px;
+  background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok-line);
+}
+.scheme-sum[data-bad="true"] {
+  background: var(--bad-soft); color: var(--bad); border-color: var(--bad-line);
+}
+
+/* ── список проблем ─────────────────────────────────────────────────────
+   Это ответ базы, а не мнение формы. Код проблемы показывается рядом
+   с текстом намеренно: по нему можно найти правило в 004/008. */
+.problems {
+  margin-top: 22px; border-radius: var(--r-lg); overflow: hidden;
+  border: 1px solid var(--bad-line); background: var(--bad-soft);
+}
+.problems[data-ok="true"] { border-color: var(--ok-line); background: var(--ok-soft); }
+.problems-head {
+  padding: 13px 18px; font-size: 14px; font-weight: 600; color: var(--bad);
+  border-bottom: 1px solid var(--bad-line);
+}
+.problems[data-ok="true"] .problems-head { color: var(--ok); border-bottom: none; }
+.problem {
+  display: flex; gap: 12px; align-items: baseline;
+  padding: 10px 18px; font-size: 13.5px; color: var(--ink);
+  border-bottom: 1px solid color-mix(in oklab, var(--bad) 14%, transparent);
+}
+.problem:last-child { border-bottom: none; }
+.problem code {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--bad); white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .kind-pick { grid-template-columns: 1fr; }
+  .problem { flex-direction: column; gap: 3px; }
+}

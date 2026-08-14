@@ -18,9 +18,9 @@
  * @property {string}   path        стабильный ключ: 'a', 'b', 'b.i'
  * @property {string}   label       то, что видит ученик: 'a', 'i'
  * @property {string}   text        text_md части
- * @property {string}  [answer_type] null у контейнерных частей
- * @property {object}  [answer_spec]
- * @property {number}  [marks]
+ * @property {string|null}  [answer_type] null у контейнерных частей
+ * @property {object|null}  [answer_spec]
+ * @property {number|null}  [marks]
  * @property {Array}   [steps]      шаги схемы оценивания: {code, marks, en, ru}
  * @property {SeedPart[]} [children]
  */
@@ -39,10 +39,14 @@
  * @param {SeedPart[]} spec.parts
  * @param {string} spec.authorId
  * @param {Record<string, string>} conceptIds  slug → uuid
+ * @param {{publish?: boolean}} [opts] publish=false оставляет версию черновиком.
+ *        Нужно авторскому конвейеру: он сначала спрашивает у SQL список
+ *        проблем и только потом решает, публиковать ли.
  * @returns {Promise<{id: string, versionId: string, totalMarks: number} | null>}
  *          null, если задача уже была засеяна
  */
-export async function createItem(q, spec, conceptIds) {
+export async function createItem(q, spec, conceptIds, opts = {}) {
+  const { publish = true } = opts;
   const one = async (sql, params) => (await q(sql, params))[0];
 
   const existing = await one(`select id from item where slug = $1`, [spec.slug]);
@@ -145,7 +149,7 @@ export async function createItem(q, spec, conceptIds) {
   // ── публикация ────────────────────────────────────────────────────────────
   // Если что-то не сходится, здесь и упадём — с перечнем проблем из SQL,
   // а не с тихо опубликованной кривой задачей.
-  await q(`select item_version_publish($1, $2)`, [version.id, spec.authorId]);
+  if (publish) await q(`select item_version_publish($1, $2)`, [version.id, spec.authorId]);
 
   return { id: item.id, versionId: version.id, totalMarks };
 }

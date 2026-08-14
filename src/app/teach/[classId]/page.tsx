@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { AssignmentBuilder } from "@/components/AssignmentBuilder";
+import { AiPanel } from "@/components/AiPanel";
+import { aiEnabled } from "@/lib/ai";
 import { requireTeacher } from "@/lib/session";
 import {
   getClass,
@@ -34,6 +36,7 @@ export default async function ClassPage({
     listBoards(),
   ]);
   const bank = await listItemsForBoard(boards[0].id);
+  const ai = aiEnabled();
 
   return (
     <>
@@ -98,13 +101,24 @@ export default async function ClassPage({
         ) : (
           <div className="roster">
             {students.map((s) => (
-              <div className="roster-row" key={s.id}>
-                <span className="avatar">{initials(s.display_name)}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 500 }}>{s.display_name}</div>
-                  <div className="roster-sub">{s.email}</div>
-                </div>
-              </div>
+              <details className="roster-row roster-expandable" key={s.id}>
+                <summary>
+                  <span className="avatar">{initials(s.display_name)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 500 }}>{s.display_name}</div>
+                    <div className="roster-sub">{s.email}</div>
+                  </div>
+                  <span className="roster-more" aria-hidden>
+                    разбор
+                  </span>
+                </summary>
+                {/* Панель внутри details: запрос уходит только когда учитель
+                    развернул конкретного ученика, а не при открытии класса. */}
+                <AiPanel
+                  mode={{ kind: "diagnose", studentId: s.id, studentName: s.display_name }}
+                  enabled={ai}
+                />
+              </details>
             ))}
           </div>
         )}

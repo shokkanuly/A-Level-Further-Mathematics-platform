@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { BoardSwitch } from "@/components/BoardSwitch";
 import { AnswerSheet, type ClientPart } from "@/components/AnswerSheet";
+import { AiPanel } from "@/components/AiPanel";
+import { aiEnabled } from "@/lib/ai";
 import { getPublishedItem, getSpecPointsForItem, boardsForItemVersion } from "@/lib/queries";
 import { getCurrentUser, assertEnrolledInAssignment } from "@/lib/session";
 import { getAssignment } from "@/lib/classroom";
@@ -142,6 +144,9 @@ export default async function ItemPage({
           assignmentId={assignment?.id ?? null}
           canAnswer={user !== null}
         />
+
+        {/* Помощник — только вошедшим: он читает их собственные попытки. */}
+        {user && <AiPanel mode={{ kind: "explain", slug }} enabled={aiEnabled()} />}
 
         <div className="note">
           Условие на английском — это язык экзамена.{" "}

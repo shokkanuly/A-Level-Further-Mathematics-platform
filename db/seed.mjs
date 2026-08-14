@@ -1,118 +1,209 @@
-// Сид Stage 1: две комиссии, дерево концептов, один демо-ученик
-// и одна задача Core Pure 1, доведённая до status = published.
+// Сид: четыре программы, их таксономии, демо-пользователи, банк задач
+// и один класс с выданной домашкой.
 //
-// Формулировки пунктов спецификации — свои. Тексты Pearson и Cambridge
-// не копируются, ссылка идёт по номеру пункта (§2).
+// Формулировки пунктов спецификаций — свои. Тексты Pearson, Cambridge
+// и College Board не копируются, ссылка идёт по номеру пункта (§2).
+//
+// Сид идемпотентен: повторный запуск не плодит дубликатов и не падает.
+// Для чистого прогона — npm run db:reset.
 
 import { withPool } from "./client.mjs";
 import { hashPassword, newJoinCode } from "../src/lib/auth.mjs";
-
-const R = String.raw;
+import { createItem } from "./seed-items.mjs";
+import { bankItems } from "./seed-bank.mjs";
 
 await withPool(async (pool) => {
   const q = async (sql, params) => (await pool.query(sql, params)).rows;
   const one = async (sql, params) => (await q(sql, params))[0];
 
   // ── комиссии и профили обозначений (§3.3) ─────────────────────────────────
-  await q(
-    `insert into board (id, name, notation_profile, position) values
-       ($1,$2,$3,1), ($4,$5,$6,2)
-     on conflict (id) do update
-       set name = excluded.name,
-           notation_profile = excluded.notation_profile,
-           position = excluded.position`,
-    [
-      "edexcel",
-      "Pearson Edexcel",
-      JSON.stringify({ "\\vect": "\\mathbf{#1}", "\\conj": "#1^*" }),
-      "cie",
-      "Cambridge International",
-      JSON.stringify({ "\\vect": "\\underline{#1}", "\\conj": "\\overline{#1}" }),
-    ],
-  );
-
-  const qual = async (board, code, name) =>
-    one(
-      `insert into qualification (board_id, code, name) values ($1,$2,$3)
-       on conflict (board_id, code) do update set name = excluded.name
-       returning id`,
-      [board, code, name],
+  //
+  // Комиссия отвечает ровно за одно: как выглядят обозначения и как
+  // нумеруются пункты. Программа (008) отвечает за то, что вообще изучается.
+  // Поэтому College Board и школьная программа тоже «комиссии»: у них свои
+  // обозначения, и им нужна строка здесь, а не особый случай в коде.
+  const board = async (id, name, profile, position) =>
+    q(
+      `insert into board (id, name, notation_profile, position) values ($1,$2,$3,$4)
+       on conflict (id) do update
+         set name = excluded.name,
+             notation_profile = excluded.notation_profile,
+             position = excluded.position`,
+      [id, name, JSON.stringify(profile), position],
     );
 
-  const edexcel = await qual("edexcel", "9FM0", "Further Mathematics");
-  const cie = await qual("cie", "9231", "Further Mathematics");
+  await board("edexcel", "Pearson Edexcel", { "\\vect": "\\mathbf{#1}", "\\conj": "#1^*" }, 1);
+  await board("cie", "Cambridge International", { "\\vect": "\\underline{#1}", "\\conj": "\\overline{#1}" }, 2);
+  // У SAT и школьной программы векторных обозначений в задачах нет,
+  // поэтому профиль пуст — это не пропуск, а факт.
+  await board("collegeboard", "College Board", {}, 3);
+  await board("school", "Школьная программа", {}, 4);
+
+  // ── квалификации: программа → квалификация → юнит → пункт ─────────────────
+  // Помощники возвращают сразу id: строка-обёртка нужна была ровно один раз,
+  // а `.id` на каждом обращении — лишний повод его забыть.
+  const qual = async (boardId, programId, code, name) =>
+    (
+      await one(
+        `insert into qualification (board_id, program_id, code, name) values ($1,$2,$3,$4)
+         on conflict (board_id, code) do update
+           set name = excluded.name, program_id = excluded.program_id
+         returning id`,
+        [boardId, programId, code, name],
+      )
+    ).id;
+
+  const satQ = await qual("collegeboard", "sat", "SAT", "Digital SAT Mathematics");
+  const schoolQ = await qual("school", "school", "SCHOOL", "Алгебра и геометрия, 7–11 класс");
+  const mathsQ = await qual("edexcel", "alevel-maths", "9MA0", "Mathematics");
+  const edexcel = await qual("edexcel", "alevel-further", "9FM0", "Further Mathematics");
+  const cie = await qual("cie", "alevel-further", "9231", "Further Mathematics");
 
   const unit = async (qualId, code, name, position) =>
-    one(
-      `insert into unit (qualification_id, code, name, position) values ($1,$2,$3,$4)
-       on conflict (qualification_id, code) do update set name = excluded.name
-       returning id`,
-      [qualId, code, name, position],
-    );
+    (
+      await one(
+        `insert into unit (qualification_id, code, name, position) values ($1,$2,$3,$4)
+         on conflict (qualification_id, code) do update set name = excluded.name
+         returning id`,
+        [qualId, code, name, position],
+      )
+    ).id;
 
-  const cp1 = await unit(edexcel.id, "CP1", "Core Pure Mathematics 1", 1);
-  await unit(edexcel.id, "CP2", "Core Pure Mathematics 2", 2);
-  await unit(edexcel.id, "FM1", "Further Mechanics 1", 3);
-  await unit(edexcel.id, "FS1", "Further Statistics 1", 4);
+  // SAT
+  const satAlg = await unit(satQ, "ALG", "Algebra", 1);
+  const satAdv = await unit(satQ, "ADV", "Advanced Math", 2);
+  const satPsd = await unit(satQ, "PSD", "Problem-Solving and Data Analysis", 3);
+  const satGeo = await unit(satQ, "GEO", "Geometry and Trigonometry", 4);
+
+  // Школа
+  const schAlg79 = await unit(schoolQ, "А7-9", "Алгебра, 7–9 класс", 1);
+  const schGeo79 = await unit(schoolQ, "Г7-9", "Геометрия, 7–9 класс", 2);
+  const schAlg1011 = await unit(schoolQ, "А10-11", "Алгебра и начала анализа, 10–11 класс", 3);
+  const schOlymp = await unit(schoolQ, "ОЛ", "Олимпиадная математика", 4);
+
+  // A-Level Mathematics
+  const maP1 = await unit(mathsQ, "P1", "Pure Mathematics 1", 1);
+  await unit(mathsQ, "P2", "Pure Mathematics 2", 2);
+  await unit(mathsQ, "S1", "Statistics 1", 3);
+  await unit(mathsQ, "M1", "Mechanics 1", 4);
+
+  // A-Level Further Mathematics
+  const cp1 = await unit(edexcel, "CP1", "Core Pure Mathematics 1", 1);
+  await unit(edexcel, "CP2", "Core Pure Mathematics 2", 2);
+  await unit(edexcel, "FM1", "Further Mechanics 1", 3);
+  await unit(edexcel, "FS1", "Further Statistics 1", 4);
   // Decision есть только у Edexcel. У CIE это просто отсутствующая строка,
   // а не ветвление в коде.
-  await unit(edexcel.id, "D1", "Decision Mathematics 1", 5);
+  await unit(edexcel, "D1", "Decision Mathematics 1", 5);
 
-  const fp1 = await unit(cie.id, "FP1", "Further Pure Mathematics 1", 1);
-  await unit(cie.id, "FP2", "Further Pure Mathematics 2", 2);
+  const fp1 = await unit(cie, "FP1", "Further Pure Mathematics 1", 1);
+  await unit(cie, "FP2", "Further Pure Mathematics 2", 2);
 
-  const spec = async (unitId, code, statement) =>
-    one(
-      `insert into spec_point (unit_id, code, statement, spec_version)
-       values ($1,$2,$3,'2017')
-       on conflict (unit_id, code, spec_version) do update set statement = excluded.statement
-       returning id`,
-      [unitId, code, statement],
-    );
+  const spec = async (unitId, code, statement, version = "2017") =>
+    (
+      await one(
+        `insert into spec_point (unit_id, code, statement, spec_version)
+         values ($1,$2,$3,$4)
+         on conflict (unit_id, code, spec_version) do update set statement = excluded.statement
+         returning id`,
+        [unitId, code, statement, version],
+      )
+    ).id;
 
-  const e21 = await spec(cp1.id, "2.1", "Сложение, вычитание и умножение согласованных матриц; умножение на скаляр.");
-  const e22 = await spec(cp1.id, "2.2", "Нулевая и единичная матрицы; некоммутативность произведения.");
-  const e25 = await spec(cp1.id, "2.5", "Матрицы 2×2 как линейные преобразования плоскости; композиция преобразований.");
-  const c14 = await spec(fp1.id, "1.4", "Умножение матриц и его свойства.");
-  const c15 = await spec(fp1.id, "1.5", "Матрицы как преобразования плоскости; последовательные преобразования.");
+  // SAT (спецификация Digital SAT, 2024)
+  const s11 = await spec(satAlg, "1.1", "Линейные уравнения с одной переменной: решение и интерпретация.", "2024");
+  await spec(satAlg, "1.2", "Системы двух линейных уравнений с двумя переменными.", "2024");
+  const s21 = await spec(satAdv, "2.1", "Квадратичные уравнения: решение, дискриминант, вершина параболы.", "2024");
+  await spec(satPsd, "3.1", "Отношения, доли и проценты в прикладных задачах.", "2024");
+  await spec(satGeo, "4.1", "Треугольники и тригонометрия прямоугольного треугольника.", "2024");
+
+  // Школа
+  const k11 = await spec(schAlg79, "1.1", "Линейные уравнения и их решение равносильными преобразованиями.", "школа");
+  const k12 = await spec(schAlg79, "1.2", "Квадратные уравнения; дискриминант и число корней.", "школа");
+  await spec(schGeo79, "2.1", "Треугольники: признаки равенства и подобия.", "школа");
+  const k31 = await spec(schAlg1011, "3.1", "Производная многочлена; касательная и точки экстремума.", "школа");
+  const k41 = await spec(schOlymp, "4.1", "Арифметика остатков, инварианты и делимость.", "школа");
+
+  // A-Level Mathematics
+  const m11 = await spec(maP1, "1.1", "Дифференцирование многочленов; производная как скорость изменения.", "2017");
+  const m12 = await spec(maP1, "1.2", "Стационарные точки и их характер по второй производной.", "2017");
+
+  // A-Level Further Mathematics
+  const e21 = await spec(cp1, "2.1", "Сложение, вычитание и умножение согласованных матриц; умножение на скаляр.");
+  const e22 = await spec(cp1, "2.2", "Нулевая и единичная матрицы; некоммутативность произведения.");
+  const e25 = await spec(cp1, "2.5", "Матрицы 2×2 как линейные преобразования плоскости; композиция преобразований.");
+  const c14 = await spec(fp1, "1.4", "Умножение матриц и его свойства.");
+  const c15 = await spec(fp1, "1.5", "Матрицы как преобразования плоскости; последовательные преобразования.");
 
   // ── концепты (board-agnostic) ─────────────────────────────────────────────
-  const concept = async (slug, en, ru, parentId, position) =>
-    one(
+  //
+  // Концепт не знает ни про программу, ни про комиссию. Одно и то же
+  // «квадратное уравнение» обслуживает и школьный блок, и SAT — именно
+  // поэтому оно заведено один раз.
+  const ids = {};
+  const concept = async (slug, en, ru, parentSlug, position) => {
+    const row = await one(
       `insert into concept (slug, name_en, name_ru, parent_id, position)
        values ($1,$2,$3,$4,$5)
        on conflict (slug) do update set name_en = excluded.name_en, name_ru = excluded.name_ru
        returning id`,
-      [slug, en, ru, parentId, position],
+      [slug, en, ru, parentSlug ? ids[parentSlug] : null, position],
     );
+    ids[slug] = row.id;
+    return row.id;
+  };
 
-  const matrices = await concept("matrices", "Matrices", "Матрицы", null, 1);
-  const mMul = await concept("matrix-multiplication", "Matrix multiplication", "Умножение матриц", matrices.id, 1);
-  const mDet = await concept("determinant", "Determinant", "Определитель", matrices.id, 2);
-  const mInv = await concept("inverse-matrix", "Inverse matrix", "Обратная матрица", matrices.id, 3);
-  const mTrans = await concept("matrix-transformations", "Matrix transformations of the plane", "Матричные преобразования плоскости", matrices.id, 4);
+  await concept("matrices", "Matrices", "Матрицы", null, 1);
+  await concept("matrix-multiplication", "Matrix multiplication", "Умножение матриц", "matrices", 1);
+  await concept("determinant", "Determinant", "Определитель", "matrices", 2);
+  await concept("inverse-matrix", "Inverse matrix", "Обратная матрица", "matrices", 3);
+  await concept("matrix-transformations", "Matrix transformations of the plane", "Матричные преобразования плоскости", "matrices", 4);
 
-  const complex = await concept("complex-numbers", "Complex numbers", "Комплексные числа", null, 2);
-  await concept("complex-roots", "Roots of polynomials over C", "Корни многочленов над C", complex.id, 1);
-  await concept("argand-diagram", "Argand diagram", "Диаграмма Аргана", complex.id, 2);
+  await concept("complex-numbers", "Complex numbers", "Комплексные числа", null, 2);
+  await concept("complex-roots", "Roots of polynomials over C", "Корни многочленов над C", "complex-numbers", 1);
+  await concept("argand-diagram", "Argand diagram", "Диаграмма Аргана", "complex-numbers", 2);
+
+  await concept("algebra", "Algebra", "Алгебра", null, 3);
+  await concept("linear-equations", "Linear equations", "Линейные уравнения", "algebra", 1);
+  await concept("quadratics", "Quadratic equations", "Квадратные уравнения", "algebra", 2);
+  await concept("systems-of-equations", "Systems of equations", "Системы уравнений", "algebra", 3);
+
+  await concept("calculus", "Calculus", "Математический анализ", null, 4);
+  await concept("differentiation", "Differentiation", "Дифференцирование", "calculus", 1);
+  await concept("integration", "Integration", "Интегрирование", "calculus", 2);
+
+  await concept("geometry", "Geometry", "Геометрия", null, 5);
+  await concept("triangles", "Triangles", "Треугольники", "geometry", 1);
+
+  await concept("number-theory", "Number theory", "Теория чисел", null, 6);
+  await concept("digital-roots", "Digital roots and modular arithmetic", "Цифровые корни и арифметика остатков", "number-theory", 1);
 
   // ── отображение концептов на пункты комиссий (many-to-many) ───────────────
-  // Один концепт обслуживает обе комиссии. Именно эта таблица делает
-  // фильтр «я готовлюсь к Edexcel» обратным обходом, а не копией банка.
-  const link = async (conceptId, specId) =>
+  // Именно эта таблица делает фильтр «я готовлюсь к SAT» обратным обходом,
+  // а не копией банка: linear-equations висит и на SAT 1.1, и на школьном 1.1.
+  const link = async (conceptSlug, specId) =>
     q(
       `insert into concept_spec_point (concept_id, spec_point_id) values ($1,$2)
        on conflict do nothing`,
-      [conceptId, specId],
+      [ids[conceptSlug], specId],
     );
 
-  await link(mMul.id, e21.id);
-  await link(mMul.id, e22.id);
-  await link(mMul.id, c14.id);
-  await link(mTrans.id, e25.id);
-  await link(mTrans.id, c15.id);
-  await link(mDet.id, e21.id);
-  await link(mInv.id, e21.id);
+  await link("matrix-multiplication", e21);
+  await link("matrix-multiplication", e22);
+  await link("matrix-multiplication", c14);
+  await link("matrix-transformations", e25);
+  await link("matrix-transformations", c15);
+  await link("determinant", e21);
+  await link("inverse-matrix", e21);
+
+  await link("linear-equations", s11);
+  await link("linear-equations", k11);
+  await link("quadratics", s21);
+  await link("quadratics", k12);
+  await link("differentiation", m11);
+  await link("differentiation", m12);
+  await link("differentiation", k31);
+  await link("digital-roots", k41);
 
   // ── пользователи ──────────────────────────────────────────────────────────
   // Демо-аккаунты с одним паролем: это сид для разработки, не продакшен.
@@ -125,11 +216,13 @@ await withPool(async (pool) => {
        values ($1,$2,$3,$4)
        on conflict (email) do update
          set display_name = excluded.display_name,
+             role = excluded.role,
              password_hash = coalesce(app_user.password_hash, excluded.password_hash)
        returning id`,
       [email, name, role, demoHash],
     );
 
+  await user("admin@example.com", "Администратор", "admin");
   const author = await user("author@example.com", "Демо-автор", "author");
   const teacher = await user("teacher@example.com", "Айгерим Сериковна", "teacher");
   const student = await user("student@example.com", "Демо-ученик", "student");
@@ -140,211 +233,36 @@ await withPool(async (pool) => {
     await user("dana@example.com", "Дана Ким", "student"),
   ];
 
-  // ── задача ────────────────────────────────────────────────────────────────
-  const slug = "cp1-matrix-transformations-of-the-plane";
-  const existing = await one(`select id from item where slug = $1`, [slug]);
-  if (existing) {
-    console.log("✓ задача уже засеяна:", slug);
-    console.log("  (для чистого прогона: npm run db:reset)");
-    return;
+  // ── банк задач ────────────────────────────────────────────────────────────
+  let created = 0;
+  let versionOfCp1 = null;
+  for (const item of bankItems(author.id)) {
+    const result = await createItem(q, item, ids);
+    if (result) created++;
+    if (item.slug === "cp1-matrix-transformations-of-the-plane") {
+      versionOfCp1 =
+        result?.versionId ??
+        (
+          await one(
+            `select iv.id from item_version iv
+             join item i on i.id = iv.item_id
+             where i.slug = $1 and iv.status = 'published'`,
+            [item.slug],
+          )
+        )?.id;
+    }
   }
 
-  const item = await one(`insert into item (slug) values ($1) returning id`, [slug]);
-
-  const version = await one(
-    `insert into item_version
-       (item_id, version, status, stem_md, difficulty, total_marks, origin, created_by)
-     values ($1, 1, 'draft', $2, 2, 8, 'original', $3)
-     returning id`,
-    [
-      item.id,
-      // Условие — на английском: это язык экзамена (§12).
-      // \vect — макрос комиссии, а не жирный шрифт руками (§3.3).
-      R`A transformation $T$ of the plane is represented by the matrix
-$$\vect{M} = \begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix}.$$`,
-      author.id,
-    ],
-  );
-
-  const addPart = async (p) =>
-    one(
-      `insert into item_part
-         (item_version_id, parent_part_id, label, path, position, text_md,
-          answer_type, answer_spec, marks)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       returning id`,
-      [
-        version.id,
-        p.parent ?? null,
-        p.label,
-        p.path,
-        p.position,
-        p.text,
-        p.answer_type ?? null,
-        p.answer_spec ? JSON.stringify(p.answer_spec) : null,
-        p.marks ?? null,
-      ],
-    );
-
-  const pa = await addPart({
-    label: "a",
-    path: "a",
-    position: 1,
-    text: R`Describe fully the transformation $T$.`,
-    answer_type: "mcq",
-    marks: 2,
-    answer_spec: {
-      options: [
-        { id: "o1", text_md: R`Rotation through $90^\circ$ anticlockwise about the origin` },
-        { id: "o2", text_md: R`Rotation through $90^\circ$ clockwise about the origin` },
-        { id: "o3", text_md: R`Reflection in the line $y = x$` },
-        { id: "o4", text_md: R`Enlargement with scale factor $-1$, centre the origin` },
-      ],
-      correct: ["o1"],
-      common_errors: [{ selected: ["o2"], feedback_code: "MCQ_ROTATION_DIRECTION" }],
-    },
-  });
-
-  // Контейнерная часть: своих баллов и типа ответа не имеет.
-  const pb = await addPart({
-    label: "b",
-    path: "b",
-    position: 2,
-    text: R`The transformation $T$ is applied twice.`,
-  });
-
-  const pbi = await addPart({
-    parent: pb.id,
-    label: "i",
-    path: "b.i",
-    position: 3,
-    text: R`Find $\vect{M}^2$.`,
-    answer_type: "matrix",
-    marks: 2,
-    answer_spec: { rows: 2, cols: 2, cells: ["-1", "0", "0", "-1"], mode: "exact" },
-  });
-
-  const pbii = await addPart({
-    parent: pb.id,
-    label: "ii",
-    path: "b.ii",
-    position: 4,
-    text: R`Describe fully the single transformation represented by $\vect{M}^2$.`,
-    answer_type: "mcq",
-    marks: 1,
-    answer_spec: {
-      options: [
-        { id: "p1", text_md: R`Rotation through $180^\circ$ about the origin` },
-        { id: "p2", text_md: R`Reflection in the $x$-axis` },
-        { id: "p3", text_md: R`Rotation through $360^\circ$ about the origin` },
-        { id: "p4", text_md: R`Enlargement with scale factor $2$, centre the origin` },
-      ],
-      correct: ["p1"],
-    },
-  });
-
-  const pc = await addPart({
-    label: "c",
-    path: "c",
-    position: 5,
-    text: R`The matrix $\vect{N}$ represents a reflection in the line $y = x$. Write down $\vect{N}$.`,
-    answer_type: "matrix",
-    marks: 1,
-    answer_spec: { rows: 2, cols: 2, cells: ["0", "1", "1", "0"], mode: "exact" },
-  });
-
-  const pd = await addPart({
-    label: "d",
-    path: "d",
-    position: 6,
-    text: R`Find the single matrix that represents $T$ followed by the reflection represented by $\vect{N}$, and hence describe that single transformation.`,
-    answer_type: "matrix",
-    marks: 2,
-    answer_spec: {
-      rows: 2,
-      cols: 2,
-      cells: ["1", "0", "0", "-1"],
-      mode: "exact",
-      // Классическая ошибка: посчитать MN вместо NM. Не «неверно»,
-      // а именованный диагноз — ради этого feedback_code и существует.
-      common_errors: [
-        { cells: ["-1", "0", "0", "1"], feedback_code: "MATRIX_ORDER_SWAPPED" },
-      ],
-    },
-  });
-
-  // ── схема оценивания ──────────────────────────────────────────────────────
-  let position = 0;
-  const addStep = async (partId, markCode, marks, en, ru) => {
-    const step = await one(
-      `insert into solution_step
-         (item_version_id, part_id, position, mark_code, marks_covered)
-       values ($1,$2,$3,$4,$5) returning id`,
-      [version.id, partId, ++position, markCode, marks],
-    );
-    await q(
-      `insert into solution_step_text (solution_step_id, locale, text_md)
-       values ($1,'en',$2), ($1,'ru',$3)`,
-      [step.id, en, ru],
-    );
-  };
-
-  await addStep(
-    pa.id, "M1", 1,
-    R`Consider the images of the base vectors: $\begin{pmatrix}1\\0\end{pmatrix} \mapsto \begin{pmatrix}0\\1\end{pmatrix}$ and $\begin{pmatrix}0\\1\end{pmatrix} \mapsto \begin{pmatrix}-1\\0\end{pmatrix}$.`,
-    R`Смотрим на образы базисных векторов: $\begin{pmatrix}1\\0\end{pmatrix} \mapsto \begin{pmatrix}0\\1\end{pmatrix}$ и $\begin{pmatrix}0\\1\end{pmatrix} \mapsto \begin{pmatrix}-1\\0\end{pmatrix}$.`,
-  );
-  await addStep(
-    pa.id, "A1", 1,
-    R`Rotation through $90^\circ$ anticlockwise about the origin.`,
-    R`Поворот на $90^\circ$ против часовой стрелки вокруг начала координат.`,
-  );
-  await addStep(
-    pbi.id, "M1", 1,
-    R`$\vect{M}^2 = \begin{pmatrix}0&-1\\1&0\end{pmatrix}\begin{pmatrix}0&-1\\1&0\end{pmatrix}$`,
-    R`$\vect{M}^2 = \begin{pmatrix}0&-1\\1&0\end{pmatrix}\begin{pmatrix}0&-1\\1&0\end{pmatrix}$`,
-  );
-  await addStep(
-    pbi.id, "A1", 1,
-    R`$= \begin{pmatrix}-1&0\\0&-1\end{pmatrix}$`,
-    R`$= \begin{pmatrix}-1&0\\0&-1\end{pmatrix}$`,
-  );
-  await addStep(
-    pbii.id, "A1", 1,
-    R`Rotation through $180^\circ$ about the origin.`,
-    R`Поворот на $180^\circ$ вокруг начала координат.`,
-  );
-  await addStep(
-    pc.id, "B1", 1,
-    R`$\vect{N} = \begin{pmatrix}0&1\\1&0\end{pmatrix}$`,
-    R`$\vect{N} = \begin{pmatrix}0&1\\1&0\end{pmatrix}$`,
-  );
-  await addStep(
-    pd.id, "M1", 1,
-    R`Order matters. «$T$ followed by $\vect{N}$» is the product $\vect{NM}$, not $\vect{MN}$.`,
-    R`Порядок важен. «Сначала $T$, потом $\vect{N}$» — это произведение $\vect{NM}$, а не $\vect{MN}$.`,
-  );
-  await addStep(
-    pd.id, "A1", 1,
-    R`$\vect{NM} = \begin{pmatrix}1&0\\0&-1\end{pmatrix}$, a reflection in the $x$-axis.`,
-    R`$\vect{NM} = \begin{pmatrix}1&0\\0&-1\end{pmatrix}$ — отражение относительно оси $x$.`,
-  );
-
-  // ── привязка к концептам ──────────────────────────────────────────────────
-  await q(
-    `insert into item_concept (item_version_id, concept_id, is_primary)
-     values ($1,$2,true), ($1,$3,false)`,
-    [version.id, mTrans.id, mMul.id],
-  );
-
-  // ── публикация через блокирующую валидацию ────────────────────────────────
-  await q(`select item_version_publish($1, $2)`, [version.id, author.id]);
-
   // ── класс с учениками и выданной домашкой ─────────────────────────────────
-  const klass = await one(
-    `insert into class (teacher_id, name, join_code) values ($1,$2,$3) returning id, join_code`,
-    [teacher.id, "11А · Further Maths", newJoinCode()],
-  );
+  let klass = await one(`select id, join_code from class where teacher_id = $1 limit 1`, [
+    teacher.id,
+  ]);
+  if (!klass) {
+    klass = await one(
+      `insert into class (teacher_id, name, join_code) values ($1,$2,$3) returning id, join_code`,
+      [teacher.id, "11А · Further Maths", newJoinCode()],
+    );
+  }
   for (const s of students) {
     await q(
       `insert into enrolment (class_id, student_id) values ($1,$2) on conflict do nothing`,
@@ -352,27 +270,50 @@ $$\vect{M} = \begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix}.$$`,
     );
   }
 
-  const due = new Date(Date.now() + 7 * 86_400_000);
-  const assignment = await one(
-    `insert into assignment (class_id, title, due_at, created_by)
-     values ($1,$2,$3,$4) returning id`,
-    [klass.id, "Матрицы: преобразования плоскости", due, teacher.id],
-  );
-  await q(
-    `insert into assignment_item (assignment_id, item_version_id, position) values ($1,$2,1)`,
-    [assignment.id, version.id],
-  );
+  let assignment = await one(`select id from assignment where class_id = $1 limit 1`, [klass.id]);
+  if (!assignment && versionOfCp1) {
+    const due = new Date(Date.now() + 7 * 86_400_000);
+    assignment = await one(
+      `insert into assignment (class_id, title, due_at, created_by)
+       values ($1,$2,$3,$4) returning id`,
+      [klass.id, "Матрицы: преобразования плоскости", due, teacher.id],
+    );
+    await q(
+      `insert into assignment_item (assignment_id, item_version_id, position) values ($1,$2,1)`,
+      [assignment.id, versionOfCp1],
+    );
+  }
+
+  // ── итог ──────────────────────────────────────────────────────────────────
+  const count = async (sql) => (await one(sql)).n;
 
   console.log("✓ засеяно");
-  console.log("  комиссии: edexcel (9FM0), cie (9231)");
-  console.log("  концептов:", (await one(`select count(*)::int n from concept`)).n);
-  console.log("  пунктов спецификаций:", (await one(`select count(*)::int n from spec_point`)).n);
-  console.log("  задача:", slug, "— опубликована, 8 баллов, 5 оцениваемых частей");
+  console.log("  программ:", await count(`select count(*)::int n from program`));
+  console.log("  комиссий:", await count(`select count(*)::int n from board`));
+  console.log("  юнитов:", await count(`select count(*)::int n from unit`));
+  console.log("  пунктов спецификаций:", await count(`select count(*)::int n from spec_point`));
+  console.log("  концептов:", await count(`select count(*)::int n from concept`));
+  console.log(
+    "  задач опубликовано:",
+    await count(`select count(*)::int n from item_version where status = 'published'`),
+    created ? `(заведено сейчас: ${created})` : "(все уже были)",
+  );
+
+  const byKind = await q(`
+    select k.name_ru, count(iv.*)::int n
+    from item_kind k
+    left join item_version iv on iv.kind = k.id and iv.status = 'published'
+    group by k.name_ru, k.position order by k.position
+  `);
+  for (const r of byKind) console.log(`    ${r.name_ru}: ${r.n}`);
+
   console.log("");
-  console.log("  класс:", "11А · Further Maths", "— код", klass.join_code);
+  console.log("  класс: 11А · Further Maths — код", klass.join_code);
   console.log("  домашка выдана, дедлайн через 7 дней, разбор закрыт до дедлайна");
   console.log("");
   console.log("  Демо-вход (пароль у всех " + DEMO_PASSWORD + "):");
+  console.log("    админ    admin@example.com");
+  console.log("    автор    author@example.com");
   console.log("    учитель  teacher@example.com");
   console.log("    ученик   student@example.com");
 });

@@ -15,7 +15,27 @@ const fail = (msg) => {
 await withPool(async (pool) => {
   const q = async (sql, params) => (await pool.query(sql, params)).rows;
 
-  const boards = await q(`select id, notation_profile from board`);
+  // Профили обозначений проверяются не по всем комиссиям подряд, а по тем,
+  // под которыми задача вообще может открыться.
+  //
+  // До появления программ (008) «все комиссии» и «достижимые комиссии» были
+  // одним и тем же множеством. Теперь нет: \vect из Core Pure не определён
+  // у College Board, и это не поломка — задача Further Maths в блоке SAT
+  // не показывается никогда. Проверять её под профилем SAT значило бы
+  // требовать от College Board знать про векторные обозначения A-Level.
+  const boardsForVersion = async (versionId) =>
+    q(
+      `select distinct b.id, b.notation_profile
+       from item_concept ic
+       join concept_spec_point csp on csp.concept_id = ic.concept_id
+       join spec_point sp on sp.id = csp.spec_point_id
+       join unit u on u.id = sp.unit_id
+       join qualification qa on qa.id = u.qualification_id
+       join board b on b.id = qa.board_id
+       where ic.item_version_id = $1`,
+      [versionId],
+    );
+
   const versions = await q(`
     select iv.id, iv.version, iv.status, iv.total_marks, i.slug
     from item_version iv join item i on i.id = iv.item_id
@@ -39,9 +59,17 @@ await withPool(async (pool) => {
       for (const p of problems) fail(`${p.code} — ${p.detail}`);
     }
 
-    // 2. LaTeX компилируется — и под каждым профилем обозначений отдельно.
+    // 2. LaTeX компилируется — и под каждым достижимым профилем отдельно.
     //    Макрос, определённый только у Edexcel, обязан быть виден как поломка
     //    на CIE, а не как «у меня всё открывалось».
+    const boards = await boardsForVersion(v.id);
+    if (boards.length === 0) {
+      // Задача есть в базе, но не привязана ни к одному пункту спецификации,
+      // значит не попадёт ни в один блок витрины. Молча это оставлять нельзя:
+      // ученик её никогда не увидит, а автор будет уверен, что завёл.
+      fail("задача не достижима ни из одной программы: у её концептов нет пунктов спецификаций");
+    }
+
     const texts = [
       ...(await q(`select 'stem' src, stem_md text from item_version where id = $1`, [v.id])),
       ...(await q(
@@ -79,7 +107,11 @@ await withPool(async (pool) => {
       }
     }
     if (texErrors === 0) {
-      console.log(`  ✓ LaTeX собирается под всеми профилями (${texts.length} фрагментов × ${boards.length})`);
+      console.log(
+        `  ✓ LaTeX собирается (${texts.length} фрагментов × ${boards.length} проф.: ${boards
+          .map((b) => b.id)
+          .join(", ")})`,
+      );
     }
 
     // 3. Каждая оцениваемая часть имеет разбор хотя бы на одной локали.

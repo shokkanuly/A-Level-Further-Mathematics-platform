@@ -1,0 +1,473 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Further Mathematics — прототип</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<style>
+  :root{
+    --paper:#F7F7F4; --sheet:#FFFFFF; --ink:#16181D; --ink-2:#5A6070; --ink-3:#8A8F9C;
+    --pen:#1B3A6B; --pen-soft:#E8EDF5; --done:#2E7D5B; --done-soft:#E6F0EA;
+    --wip:#B07A18; --wip-soft:#F7EFDE; --rule:#DFE2DC; --grid:#EDEEE9;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  button{font:inherit;cursor:pointer}
+  :focus-visible{outline:2px solid var(--pen);outline-offset:2px}
+
+  .topbar{display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--paper);z-index:20;flex-wrap:wrap}
+  .brand{font-family:var(--serif);font-size:18px;letter-spacing:-.01em}
+  .brand em{font-style:normal;color:var(--pen)}
+  .demo-tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);border:1px solid var(--rule);padding:2px 7px;border-radius:2px}
+  .boardpick{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .boardpick .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .seg{display:flex;border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--sheet)}
+  .seg button{border:0;background:transparent;padding:7px 14px;font-size:13px;color:var(--ink-2)}
+  .seg button[aria-pressed=true]{background:var(--pen);color:#fff}
+  .seg button small{display:block;font-family:var(--mono);font-size:9.5px;opacity:.7;letter-spacing:.05em}
+
+  .layout{display:grid;grid-template-columns:296px minmax(0,1fr);min-height:calc(100vh - 58px)}
+  .rail{border-right:1px solid var(--rule);padding:20px 16px 40px}
+  h2{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);font-weight:400;margin:0 0 12px}
+  .pane{padding:26px 30px 80px;min-width:0}
+
+  .coverage{background:var(--sheet);border:1px solid var(--rule);padding:13px 14px;margin-bottom:22px}
+  .cov-track{display:flex;height:8px;background:var(--grid);margin:9px 0 8px}
+  .cov-track i{display:block;height:8px}
+  .cov-track i.s1{background:var(--done)} .cov-track i.s2{background:var(--wip)} .cov-track i.s3{background:var(--grid);box-shadow:inset 0 0 0 1px var(--rule)}
+  .cov-legend{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);line-height:1.7}
+  .cov-legend b{font-weight:400;color:var(--ink-2)}
+
+  .stage-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3);margin:18px 0 8px;display:flex;gap:8px;align-items:baseline}
+  .mod{display:block;width:100%;text-align:left;background:var(--sheet);border:1px solid var(--rule);border-radius:3px;padding:11px 12px;margin-bottom:7px}
+  .mod[aria-current=true]{border-color:var(--pen);box-shadow:inset 3px 0 0 var(--pen)}
+  .mod:disabled{opacity:.55;cursor:default}
+  .mod .m-name{font-size:14px;margin-bottom:3px}
+  .mod .m-meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);display:flex;justify-content:space-between;gap:8px}
+  .pill{font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:1px 6px;border-radius:2px}
+  .pill.done{background:var(--done-soft);color:var(--done)}
+  .pill.wip{background:var(--wip-soft);color:var(--wip)}
+  .pill.plan{background:var(--grid);color:var(--ink-3)}
+
+  .boardnote{background:var(--wip-soft);border:1px solid #E7D6AF;border-radius:3px;padding:11px 13px;font-size:13px;color:#6B4E0E;margin-bottom:18px;max-width:730px}
+  .boardnote b{font-weight:500}
+
+  .crumb{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:14px}
+  .crumb button{border:0;background:0;color:var(--pen);padding:0;font-family:var(--mono);font-size:11px}
+  .modtitle{font-family:var(--serif);font-size:25px;margin:0 0 4px;letter-spacing:-.01em}
+  .modsub{color:var(--ink-2);font-size:14px;margin:0 0 22px}
+
+  .topics{background:var(--sheet);border:1px solid var(--rule);max-width:730px}
+  .trow{display:grid;grid-template-columns:minmax(0,1fr) 118px 90px;gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--rule);width:100%;text-align:left;background:transparent;border-left:0;border-right:0;border-top:0}
+  .trow:last-child{border-bottom:0}
+  .trow:hover:not(:disabled){background:var(--paper)}
+  .trow:disabled{cursor:default;color:var(--ink-3)}
+  .trow .t-n{font-size:15px}
+  .trow .t-track{height:5px;background:var(--grid)}
+  .trow .t-track i{display:block;height:5px;background:var(--pen)}
+  .trow .t-count{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);text-align:right}
+
+  .sheet{background:var(--sheet);border:1px solid var(--rule);max-width:730px;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:26px 26px;background-position:-1px -1px}
+  .sheet-head{display:flex;align-items:baseline;gap:12px;padding:15px 22px;border-bottom:1px solid var(--rule);background:var(--sheet);flex-wrap:wrap}
+  .sheet-head .code{font-family:var(--mono);font-size:11px;color:var(--pen);letter-spacing:.06em}
+  .sheet-head .tot{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+
+  .stem{display:grid;grid-template-columns:34px minmax(0,1fr) 46px;padding:22px 22px 4px}
+  .qnum{font-family:var(--mono);font-size:14px;color:var(--ink-2);padding-top:3px}
+  .qbody{font-family:var(--serif);font-size:17px;line-height:1.62}
+  .marks{font-family:var(--mono);font-size:13px;color:var(--ink-3);text-align:right;padding-top:4px;white-space:nowrap}
+  .part{display:grid;grid-template-columns:34px minmax(0,1fr) 46px;padding:0 22px;margin-top:17px}
+  .plabel{font-family:var(--mono);font-size:14px;color:var(--ink-2);padding-top:2px}
+  .ptext{font-family:var(--serif);font-size:16.5px;line-height:1.6}
+
+  .actions{display:flex;gap:10px;align-items:center;padding:18px 22px;border-top:1px solid var(--rule);background:var(--sheet);margin-top:22px;flex-wrap:wrap}
+  .btn{border:1px solid var(--pen);background:var(--pen);color:#fff;padding:9px 17px;border-radius:3px;font-size:14px}
+  .btn.ghost{background:transparent;color:var(--pen)}
+  .btn:disabled{opacity:.35;cursor:default}
+  .spacer{margin-left:auto}
+  .vid{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+  .vid .dot{width:7px;height:7px;border-radius:50%;background:var(--pen)}
+
+  .steps{border-top:1px solid var(--rule);background:var(--sheet);padding:18px 22px 22px}
+  .steps h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);font-weight:400;margin:0 0 14px}
+  .step{display:grid;grid-template-columns:30px minmax(0,1fr) 40px;gap:8px;padding:9px 0;border-bottom:1px dashed var(--rule)}
+  .step:last-child{border-bottom:0}
+  .step .sp{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-top:2px}
+  .step .sx{font-size:15px}
+  .step .sc{font-family:var(--mono);font-size:11px;color:var(--pen);text-align:right;padding-top:3px}
+  .stepnav{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .stepnav .cnt{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+
+  .argand{margin:10px 0 4px}
+  .empty{background:var(--sheet);border:1px dashed var(--rule);padding:26px 22px;max-width:730px;text-align:center}
+  .empty p{margin:0 0 6px;font-size:14.5px}
+  .empty .sub{color:var(--ink-2);font-size:13px}
+  .note{max-width:730px;margin-top:20px;font-size:13px;color:var(--ink-2);border-left:2px solid var(--rule);padding-left:14px}
+  .note code{font-family:var(--mono);font-size:12px;color:var(--pen)}
+  .katex{font-size:1.02em}
+  @media (max-width:840px){
+    .layout{grid-template-columns:1fr}
+    .rail{border-right:0;border-bottom:1px solid var(--rule)}
+    .pane{padding:20px 16px 60px}
+    .stem,.part{grid-template-columns:26px minmax(0,1fr) 40px}
+    .trow{grid-template-columns:minmax(0,1fr) 70px}
+    .trow .t-count{display:none}
+  }
+</style>
+
+<div class="topbar">
+  <div class="brand">Further Mathematics<em>.</em></div>
+  <div class="demo-tag">прототип</div>
+  <div class="boardpick">
+    <span class="lbl">Я готовлюсь к</span>
+    <div class="seg" role="group" aria-label="Экзаменационная комиссия">
+      <button id="b-edexcel" aria-pressed="true" onclick="setBoard('edexcel')">Edexcel<small>Pearson · 9FM0</small></button>
+      <button id="b-cie" aria-pressed="false" onclick="setBoard('cie')">CIE<small>Cambridge · 9231</small></button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="rail"><div id="rail"></div></aside>
+  <main class="pane"><div id="pane"></div></main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+const R = String.raw;
+
+const BOARDS = {
+  edexcel:{name:"Pearson Edexcel", code:"9FM0"},
+  cie:    {name:"Cambridge International", code:"9231"}
+};
+
+/* stage 1 — ядро, stage 2 — прикладной приоритет, stage 3 — ниша */
+const MODULES = [
+  {id:"e-cp1", board:"edexcel", stage:1, name:"Core Pure Mathematics 1", sub:"Обязательное ядро", topics:[
+    {n:"Комплексные числа",      have:14, need:40},
+    {n:"Матрицы",                have:11, need:35},
+    {n:"Векторы",                have:6,  need:30},
+    {n:"Корни многочленов",      have:8,  need:25},
+    {n:"Ряды",                   have:5,  need:20},
+    {n:"Доказательство по индукции", have:7, need:20}
+  ]},
+  {id:"e-cp2", board:"edexcel", stage:1, name:"Core Pure Mathematics 2", sub:"Обязательное ядро", topics:[
+    {n:"Комплексные числа: теорема Муавра", have:6, need:30},
+    {n:"Гиперболические функции", have:4, need:28},
+    {n:"Полярные координаты",     have:3, need:22},
+    {n:"Дальнейшее исчисление",   have:2, need:30},
+    {n:"Дифференциальные уравнения", have:0, need:32},
+    {n:"Методы в исчислении",     have:0, need:18}
+  ]},
+  {id:"e-fm1", board:"edexcel", stage:2, name:"Further Mechanics 1", sub:"Для инженеров и физиков", topics:[
+    {n:"Импульс и количество движения", have:3, need:24},
+    {n:"Работа, энергия и мощность",    have:2, need:26},
+    {n:"Упругие столкновения",          have:0, need:28},
+    {n:"Упругие струны и пружины",      have:0, need:22}
+  ]},
+  {id:"e-fs1", board:"edexcel", stage:2, name:"Further Statistics 1", sub:"Для экономистов и аналитиков", topics:[
+    {n:"Дискретные распределения",      have:2, need:22},
+    {n:"Распределение Пуассона",        have:1, need:26},
+    {n:"Проверка гипотез: хи-квадрат",  have:0, need:24},
+    {n:"Геометрическое распределение",  have:0, need:18},
+    {n:"Корреляция и регрессия",        have:0, need:20}
+  ]},
+  {id:"e-d1", board:"edexcel", stage:3, name:"Decision Mathematics 1", sub:"Для Computer Science", topics:[
+    {n:"Алгоритмы и сортировка", have:0, need:24},
+    {n:"Графы и сети",           have:0, need:22},
+    {n:"Алгоритм Дейкстры",      have:0, need:18},
+    {n:"Критический путь",       have:0, need:20},
+    {n:"Линейное программирование", have:0, need:26},
+    {n:"Задача о паросочетаниях", have:0, need:16}
+  ]},
+  {id:"e-fm2", board:"edexcel", stage:3, name:"Further Mechanics 2", sub:"Углублённый уровень", topics:[
+    {n:"Движение по окружности", have:0, need:26},
+    {n:"Центры масс",            have:0, need:24},
+    {n:"Кинематика переменного ускорения", have:0, need:22}
+  ]},
+  {id:"e-fs2", board:"edexcel", stage:3, name:"Further Statistics 2", sub:"Углублённый уровень", topics:[
+    {n:"Непрерывные распределения", have:0, need:24},
+    {n:"Комбинации случайных величин", have:0, need:20},
+    {n:"Доверительные интервалы", have:0, need:22}
+  ]},
+
+  {id:"c-fp1", board:"cie", stage:1, name:"Further Pure Mathematics 1", sub:"Обязательное ядро", topics:[
+    {n:"Корни многочленов",      have:9,  need:28},
+    {n:"Рациональные функции",   have:7,  need:26},
+    {n:"Полярные координаты",    have:5,  need:24},
+    {n:"Матрицы",                have:10, need:32},
+    {n:"Ряды",                   have:6,  need:22},
+    {n:"Доказательство по индукции", have:7, need:20},
+    {n:"Векторы",                have:4,  need:26}
+  ]},
+  {id:"c-fp2", board:"cie", stage:1, name:"Further Pure Mathematics 2", sub:"Обязательное ядро", topics:[
+    {n:"Гиперболические функции", have:4, need:26},
+    {n:"Матрицы: собственные значения", have:2, need:28},
+    {n:"Дифференцирование и интегрирование", have:1, need:30},
+    {n:"Комплексные числа",       have:6, need:28},
+    {n:"Дифференциальные уравнения", have:0, need:30}
+  ]},
+  {id:"c-fm", board:"cie", stage:2, name:"Further Mechanics", sub:"Для инженеров и физиков", topics:[
+    {n:"Движение по окружности", have:2, need:26},
+    {n:"Гук и упругие струны",   have:1, need:24},
+    {n:"Импульс и столкновения", have:0, need:26},
+    {n:"Центры масс",            have:0, need:22}
+  ]},
+  {id:"c-fps", board:"cie", stage:2, name:"Further Probability & Statistics", sub:"Для экономистов и аналитиков", topics:[
+    {n:"Непрерывные случайные величины", have:2, need:26},
+    {n:"Распределение Пуассона",         have:1, need:24},
+    {n:"Проверка гипотез",               have:0, need:26},
+    {n:"Непараметрические критерии",     have:0, need:20}
+  ]}
+];
+
+const STAGE_LABEL = {1:"Этап 1 · ядро", 2:"Этап 2 · прикладной приоритет", 3:"Этап 3 · ниша"};
+const STAGE_PILL  = {1:["done","готово"], 2:["wip","в работе"], 3:["plan","запланировано"]};
+
+/* Демонстрационные задачи в формате past paper: пункты (a)–(d) с нарастанием сложности */
+const QUESTIONS = [
+  { id:"q1", module:"e-cp1", topic:"Комплексные числа", ref:"Core Pure 1 · past paper style · Q4", marks:12, video:"11:26",
+    stem: R`Дана функция $f(z) = z^3 - 3z^2 + z + 5$, где $z \in \mathbb{C}$.`,
+    parts:[
+      {label:"a", text:R`Покажите, что $z = -1$ является корнем уравнения $f(z) = 0$.`, marks:2},
+      {label:"b", text:R`Отсюда найдите два оставшихся корня уравнения $f(z) = 0$.`, marks:4},
+      {label:"c", text:R`Изобразите все три корня на диаграмме Аргана.`, marks:2},
+      {label:"d", text:R`Докажите, что три корня являются вершинами равнобедренного треугольника.`, marks:4}
+    ],
+    steps:[
+      {p:"a", code:"M1", t:R`Подставляем $z = -1$: $(-1)^3 - 3(-1)^2 + (-1) + 5$.`},
+      {p:"a", code:"A1", t:R`$= -1 - 3 - 1 + 5 = 0$, значит $z = -1$ — корень.`},
+      {p:"b", code:"M1", t:R`Так как $z=-1$ — корень, $(z+1)$ является множителем. Делим столбиком.`},
+      {p:"b", code:"A1", t:R`$f(z) = (z+1)(z^2 - 4z + 5)$.`},
+      {p:"b", code:"M1", t:R`Решаем $z^2 - 4z + 5 = 0$: $z = \dfrac{4 \pm \sqrt{16 - 20}}{2}$.`},
+      {p:"b", code:"A1", t:R`$z = 2 + i$ и $z = 2 - i$.`},
+      {p:"c", code:"B1", t:R`Оси подписаны, отмечены точки $(-1,\,0)$, $(2,\,1)$, $(2,\,-1)$.`, argand:true},
+      {p:"c", code:"B1", t:R`Сопряжённые корни симметричны относительно действительной оси — это видно на диаграмме.`},
+      {p:"d", code:"M1", t:R`Находим длины сторон как модули разностей корней.`},
+      {p:"d", code:"A1", t:R`$|(2+i) - (-1)| = |3 + i| = \sqrt{10}$.`},
+      {p:"d", code:"A1", t:R`$|(2-i) - (-1)| = |3 - i| = \sqrt{10}$.`},
+      {p:"d", code:"A1", t:R`$|(2+i)-(2-i)| = |2i| = 2 \ne \sqrt{10}$. Две стороны равны, третья отличается — треугольник равнобедренный.`}
+    ]},
+
+  { id:"q2", module:"e-cp1", topic:"Матрицы", ref:"Core Pure 1 · past paper style · Q6", marks:8, video:"08:41",
+    stem: R`Преобразование $T$ задаётся матрицей $\mathbf{M} = \begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix}$.`,
+    parts:[
+      {label:"a", text:R`Опишите полностью преобразование $T$.`, marks:2},
+      {label:"b", text:R`Найдите $\mathbf{M}^2$ и опишите соответствующее преобразование.`, marks:3},
+      {label:"c", text:R`Матрица $\mathbf{N}$ задаёт отражение относительно прямой $y = x$. Запишите $\mathbf{N}$.`, marks:1},
+      {label:"d", text:R`Найдите единственную матрицу, задающую $T$ с последующим отражением $\mathbf{N}$, и опишите результат.`, marks:2}
+    ],
+    steps:[
+      {p:"a", code:"M1", t:R`Смотрим на образы базисных векторов: $\begin{pmatrix}1\\0\end{pmatrix} \mapsto \begin{pmatrix}0\\1\end{pmatrix}$, $\begin{pmatrix}0\\1\end{pmatrix} \mapsto \begin{pmatrix}-1\\0\end{pmatrix}$.`},
+      {p:"a", code:"A1", t:R`Поворот на $90^\circ$ против часовой стрелки вокруг начала координат.`},
+      {p:"b", code:"M1", t:R`$\mathbf{M}^2 = \begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix}\begin{pmatrix} 0 & -1 \\ 1 & 0 \end{pmatrix}$.`},
+      {p:"b", code:"A1", t:R`$= \begin{pmatrix} -1 & 0 \\ 0 & -1 \end{pmatrix}$.`},
+      {p:"b", code:"A1", t:R`Поворот на $180^\circ$ вокруг начала координат.`},
+      {p:"c", code:"B1", t:R`$\mathbf{N} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$.`},
+      {p:"d", code:"M1", t:R`Порядок важен: сначала $T$, потом $\mathbf{N}$, значит произведение $\mathbf{NM}$, а не $\mathbf{MN}$.`},
+      {p:"d", code:"A1", t:R`$\mathbf{NM} = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}$ — отражение относительно оси $x$.`}
+    ]},
+
+  { id:"q3", module:"c-fp1", topic:"Доказательство по индукции", ref:"FP1 · past paper style · Q3", marks:7, video:"09:15",
+    stem: R`Дана последовательность, заданная рекуррентно: $u_1 = 2$ и $u_{n+1} = 3u_n - 2$ для $n \ge 1$.`,
+    parts:[
+      {label:"a", text:R`Вычислите $u_2$ и $u_3$.`, marks:2},
+      {label:"b", text:R`Выдвиньте гипотезу о формуле общего члена $u_n$.`, marks:1},
+      {label:"c", text:R`Докажите вашу гипотезу методом математической индукции.`, marks:4}
+    ],
+    steps:[
+      {p:"a", code:"M1", t:R`$u_2 = 3(2) - 2 = 4$.`},
+      {p:"a", code:"A1", t:R`$u_3 = 3(4) - 2 = 10$.`},
+      {p:"b", code:"B1", t:R`Члены $2,\,4,\,10,\,28$ — это $3^{n-1} + 1$. Гипотеза: $u_n = 3^{n-1} + 1$.`},
+      {p:"c", code:"B1", t:R`База $n=1$: $3^0 + 1 = 2 = u_1$. Верно.`},
+      {p:"c", code:"M1", t:R`Предположим, что $u_k = 3^{k-1} + 1$ для некоторого $k \ge 1$.`},
+      {p:"c", code:"A1", t:R`$u_{k+1} = 3(3^{k-1} + 1) - 2 = 3^k + 3 - 2 = 3^k + 1$.`},
+      {p:"c", code:"A1", t:R`Это формула при $n = k+1$. Утверждение верно при $n=1$ и наследуется, значит верно для всех $n \ge 1$.`}
+    ]}
+];
+
+let board = "edexcel";
+let openModule = "e-cp1";
+let openTopic = null;
+let openQ = null;
+let shown = 0;
+
+const modsOf = b => MODULES.filter(m => m.board === b);
+const mod = id => MODULES.find(m => m.id === id);
+const qsFor = (mid, topic) => QUESTIONS.filter(q => q.module === mid && q.topic === topic);
+
+function tex(el){
+  if (window.renderMathInElement) renderMathInElement(el, {
+    delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}],
+    throwOnError:false
+  });
+}
+
+function setBoard(b){
+  board = b;
+  document.getElementById("b-edexcel").setAttribute("aria-pressed", b==="edexcel");
+  document.getElementById("b-cie").setAttribute("aria-pressed", b==="cie");
+  openModule = modsOf(b)[0].id; openTopic = null; openQ = null; shown = 0;
+  render();
+}
+function pickModule(id){ openModule = id; openTopic = null; openQ = null; render(); }
+function pickTopic(t){ openTopic = t; openQ = null; render(); }
+function openQuestion(id){ openQ = id; shown = 0; render(); }
+function backToTopic(){ openQ = null; render(); }
+function backToModule(){ openTopic = null; openQ = null; render(); }
+function revealNext(){ shown++; render(); }
+function revealAll(){ shown = QUESTIONS.find(q=>q.id===openQ).steps.length; render(); }
+function hideSteps(){ shown = 0; render(); }
+
+/* ---------- левая колонка ---------- */
+
+function renderRail(){
+  const ms = modsOf(board);
+  const stat = s => { const g = ms.filter(m=>m.stage===s); 
+    return g.reduce((a,m)=>a+m.topics.reduce((x,t)=>x+t.have,0),0); };
+
+  let html = `<h2>Покрытие программы</h2>
+    <div class="coverage">
+      <div class="cov-track">
+        <i class="s1" style="width:55%"></i><i class="s2" style="width:35%"></i><i class="s3" style="width:10%"></i>
+      </div>
+      <div class="cov-legend">
+        <b>55%</b> запросов — ядро (этап 1)<br>
+        <b>+35%</b> — механика и статистика (этап 2)<br>
+        <b>+10%</b> — ниша (этап 3)
+      </div>
+    </div>
+    <h2>Модули · ${BOARDS[board].name}</h2>`;
+
+  [1,2,3].forEach(s=>{
+    const g = ms.filter(m=>m.stage===s);
+    if(!g.length) return;
+    const [cls,label] = STAGE_PILL[s];
+    html += `<div class="stage-head">${STAGE_LABEL[s]} <span class="pill ${cls}">${label}</span></div>`;
+    html += g.map(m=>{
+      const have = m.topics.reduce((a,t)=>a+t.have,0);
+      const need = m.topics.reduce((a,t)=>a+t.need,0);
+      return `<button class="mod" aria-current="${m.id===openModule}" ${s===3?"disabled":""} onclick="pickModule('${m.id}')">
+        <div class="m-name">${m.name}</div>
+        <div class="m-meta"><span>${m.topics.length} тем</span><span>${have}/${need} задач</span></div>
+      </button>`;
+    }).join("");
+  });
+
+  document.getElementById("rail").innerHTML = html;
+}
+
+/* ---------- правая колонка ---------- */
+
+function render(){
+  renderRail();
+  const pane = document.getElementById("pane");
+  pane.innerHTML = openQ ? questionHTML() : (openTopic ? topicHTML() : moduleHTML());
+  tex(pane);
+}
+
+function moduleHTML(){
+  const m = mod(openModule);
+  const missing = board === "cie"
+    ? `<div class="boardnote"><b>Decision Mathematics в этой комиссии отсутствует.</b> У Cambridge International в Further Mathematics нет аналога этого модуля — он есть только у Edexcel и AQA. Ученикам на Computer Science, которым нужна дискретная математика, показываем модуль Edexcel отдельно.</div>`
+    : "";
+  const have = m.topics.reduce((a,t)=>a+t.have,0);
+  const need = m.topics.reduce((a,t)=>a+t.need,0);
+
+  return `${missing}
+    <div class="crumb">${BOARDS[board].name} · ${BOARDS[board].code} · ${STAGE_LABEL[m.stage]}</div>
+    <h1 class="modtitle">${m.name}</h1>
+    <p class="modsub">${m.sub} · заведено ${have} задач из ${need} целевых</p>
+    <h2>Темы</h2>
+    <div class="topics">${m.topics.map(t=>{
+      const pct = Math.round(t.have/t.need*100);
+      const live = qsFor(m.id, t.n).length;
+      return `<button class="trow" ${live?"":"disabled"} onclick="pickTopic('${t.n.replace(/'/g,"\\'")}')">
+        <div><div class="t-n">${t.n}</div></div>
+        <div class="t-track"><i style="width:${pct}%"></i></div>
+        <div class="t-count">${t.have}/${t.need}${live?" · демо":""}</div>
+      </button>`;
+    }).join("")}</div>
+    <p class="note">Темы с пометкой «демо» открываются — в них заведена показательная задача. Остальные кликабельны, как только в них появится контент; счётчик <code>have/need</code> и есть очередь работы для автора.</p>`;
+}
+
+function topicHTML(){
+  const m = mod(openModule);
+  const qs = qsFor(m.id, openTopic);
+  return `<div class="crumb"><button onclick="backToModule()">${m.name}</button> · ${openTopic}</div>
+    <h1 class="modtitle">${openTopic}</h1>
+    <p class="modsub">${qs.length} задача в формате экзаменационного билета</p>
+    <div class="topics">${qs.map(q=>`
+      <button class="trow" style="grid-template-columns:minmax(0,1fr) 110px" onclick="openQuestion('${q.id}')">
+        <div><div class="t-n" style="font-family:var(--serif)">${q.stem}</div>
+          <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:4px">${q.ref} · пунктов ${q.parts.length} · разбор ${q.video}</div></div>
+        <div class="t-count">[${q.marks}]</div>
+      </button>`).join("")}</div>`;
+}
+
+function argandSVG(){
+  return `<svg class="argand" width="260" height="185" viewBox="0 0 260 185" role="img" aria-label="Диаграмма Аргана с точками -1, 2+i и 2-i">
+    <line x1="18" y1="92" x2="244" y2="92" stroke="#8A8F9C" stroke-width="1"/>
+    <line x1="92" y1="14" x2="92" y2="172" stroke="#8A8F9C" stroke-width="1"/>
+    <text x="238" y="107" font-family="Georgia,serif" font-size="11" fill="#5A6070">Re</text>
+    <text x="98" y="22" font-family="Georgia,serif" font-size="11" fill="#5A6070">Im</text>
+    <circle cx="62" cy="92" r="3.5" fill="#1B3A6B"/>
+    <text x="42" y="110" font-family="Georgia,serif" font-size="11" fill="#16181D">-1</text>
+    <circle cx="152" cy="62" r="3.5" fill="#1B3A6B"/>
+    <text x="160" y="59" font-family="Georgia,serif" font-size="11" fill="#16181D">2 + i</text>
+    <circle cx="152" cy="122" r="3.5" fill="#1B3A6B"/>
+    <text x="160" y="130" font-family="Georgia,serif" font-size="11" fill="#16181D">2 - i</text>
+    <path d="M62 92 L152 62 L152 122 Z" fill="none" stroke="#1B3A6B" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>
+  </svg>`;
+}
+
+function questionHTML(){
+  const m = mod(openModule);
+  const q = QUESTIONS.find(x=>x.id===openQ);
+  const total = q.steps.length;
+
+  const stepsBlock = shown === 0 ? "" : `<div class="steps">
+    <h3>Пошаговый разбор · коды схемы оценивания</h3>
+    ${q.steps.slice(0, shown).map(s=>`
+      <div class="step">
+        <div class="sp">(${s.p})</div>
+        <div class="sx">${s.t}${s.argand ? argandSVG() : ""}</div>
+        <div class="sc">${s.code}</div>
+      </div>`).join("")}
+    <div class="stepnav">
+      ${shown < total ? `<button class="btn ghost" onclick="revealNext()">Следующий шаг</button>
+                         <button class="btn ghost" onclick="revealAll()">Показать целиком</button>` 
+                      : `<button class="btn ghost" onclick="hideSteps()">Свернуть разбор</button>`}
+      <span class="cnt">${shown} из ${total} шагов</span>
+    </div>
+  </div>`;
+
+  return `<div class="crumb"><button onclick="backToModule()">${m.name}</button> · <button onclick="backToTopic()">${q.topic}</button></div>
+    <div class="sheet">
+      <div class="sheet-head">
+        <span class="code">${BOARDS[board].name} · ${q.ref}</span>
+        <span class="tot">всего [${q.marks}]</span>
+      </div>
+      <div class="stem"><div class="qnum">1</div><div class="qbody">${q.stem}</div><div class="marks"></div></div>
+      ${q.parts.map(p=>`<div class="part">
+        <div class="plabel">(${p.label})</div>
+        <div class="ptext">${p.text}</div>
+        <div class="marks">[${p.marks}]</div>
+      </div>`).join("")}
+      <div class="actions">
+        ${shown===0 ? `<button class="btn" onclick="revealNext()">Показать разбор</button>` 
+                    : `<button class="btn ghost" onclick="hideSteps()">Скрыть разбор</button>`}
+        <div class="vid"><span class="dot"></span>видеоразбор ${q.video}</div>
+      </div>
+      ${stepsBlock}
+    </div>
+    <p class="note">Пункты идут по нарастанию: вычисление → метод → изображение → доказательство. Справа от каждого шага — код схемы оценивания: <code>M1</code> балл за метод, <code>A1</code> за точность, <code>B1</code> независимый балл. Ученик видит, за что именно даются баллы, а не только правильный ответ.</p>`;
+}
+
+render();
+</script>

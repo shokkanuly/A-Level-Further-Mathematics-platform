@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { getCurrentUser } from "@/lib/session";
 import { queryOne } from "@/lib/db";
+import { listPrograms } from "@/lib/programs";
+import { plural } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +13,16 @@ export default async function Landing() {
   // Вошедшего не держим на витрине: у него есть работа.
   if (user) redirect(user.role === "student" ? "/learn" : "/teach");
 
-  const stats = await queryOne<{ items: number; concepts: number; marks: number }>(
-    `select (select count(*)::int from item_version where status = 'published') as items,
-            (select count(*)::int from concept where parent_id is not null) as concepts,
-            (select coalesce(sum(total_marks), 0)::int from item_version
-              where status = 'published') as marks`,
-  );
+  const [stats, programs] = await Promise.all([
+    queryOne<{ items: number; concepts: number; marks: number; lessons: number }>(
+      `select (select count(*)::int from item_version where status = 'published') as items,
+              (select count(*)::int from concept where parent_id is not null) as concepts,
+              (select coalesce(sum(total_marks), 0)::int from item_version
+                where status = 'published') as marks,
+              (select count(*)::int from lesson where published_at is not null) as lessons`,
+    ),
+    listPrograms(),
+  ]);
 
   return (
     <>
@@ -24,13 +30,29 @@ export default async function Landing() {
       <main className="page landing" id="main">
         <div className="hero-wrap">
           <h1 className="hero">
-            Further Maths <em>без перевода</em> на пальцах
+            Математика <em>без перевода</em> на пальцах
           </h1>
           <p className="hero-sub">
-            Задачи в формате экзаменационного билета, схема оценивания по баллам
-            и пошаговые разборы на русском. Edexcel и Cambridge — раздельно,
-            но из одного банка.
+            Четыре программы в одном банке: SAT, школьная математика, A-Level
+            и Further Maths. Задачи в формате экзаменационного билета, схема
+            оценивания по баллам и пошаговые разборы на русском.
           </p>
+
+          <div className="hero-badges">
+            <span className="hero-badge" style={{ ["--dot" as string]: "var(--c-matrices)" }}>
+              <i /> Домашка с дедлайном
+            </span>
+            <span className="hero-badge" style={{ ["--dot" as string]: "var(--c-complex)" }}>
+              <i /> Уроки: видео и конспект
+            </span>
+            <span className="hero-badge" style={{ ["--dot" as string]: "var(--c-statistics)" }}>
+              <i /> Личный кабинет и мониторинг
+            </span>
+            <span className="hero-badge" style={{ ["--dot" as string]: "var(--c-vectors)" }}>
+              <i /> Чат класса и объявления
+            </span>
+          </div>
+
           <div className="hero-actions">
             <Link className="btn" href="/signup">
               Начать бесплатно
@@ -41,26 +63,44 @@ export default async function Landing() {
           </div>
         </div>
 
+        {/* Четыре блока прямо на витрине: это первое, что человек должен
+            понять про платформу — что здесь не одна программа. */}
+        <div className="landing-programs stagger">
+          {programs.map((p) => (
+            <Link
+              key={p.id}
+              className="landing-program"
+              href={`/bank?program=${p.id}`}
+              style={{ ["--accent" as string]: `var(--c-${p.accent})` }}
+            >
+              <span className="landing-program-name">{p.name_ru}</span>
+              <span className="landing-program-count">
+                {p.item_count} {plural(p.item_count, "задача", "задачи", "задач")}
+              </span>
+            </Link>
+          ))}
+        </div>
+
         <div className="feature-grid stagger">
           <Feature
             family="matrices"
             title="Учителю"
-            body="Создать класс, выдать домашку с дедлайном, увидеть, кто сдал и на каких пунктах класс теряет баллы. Ни одного сообщения в мессенджере."
+            body="Создать класс, выдать домашку с дедлайном, увидеть, кто сдал и на каких пунктах класс теряет баллы. Кабинет сам показывает, к кому подойти."
           />
           <Feature
             family="complex"
             title="Ученику"
-            body="Разбор не «вот ответ», а по кодам схемы: где балл за метод, где за точность."
+            body="Разбор не «вот ответ», а по кодам схемы: где балл за метод, где за точность. Плюс слабые темы — по баллам, а не по числу задач."
           />
           <Feature
             family="vectors"
-            title="Частичный зачёт"
-            body="На задаче в 12 баллов видно, что взято 8 — и на каких пунктах потеряно остальное."
+            title="Своя задача"
+            body="Учитель заводит задачу сам: условие, пункты, схема оценивания, разбор. У теории и практикума разбор обязателен — это правило проверяет база, а не форма."
           />
           <Feature
             family="statistics"
-            title="Две комиссии, один банк"
-            body="Задача привязана к математике, а не к комиссии. Один и тот же определитель обслуживает Edexcel CP1 и CIE FP1 — с разными обозначениями в условии и без дубля в банке."
+            title="Один банк на все программы"
+            body="Задача привязана к математике, а не к программе. Линейное уравнение видно и в SAT, и в школьном блоке — под разными номерами пунктов и без дубля в банке."
           />
         </div>
 
@@ -78,8 +118,8 @@ export default async function Landing() {
             <span>концептов в таксономии</span>
           </div>
           <div className="stat">
-            <b>2</b>
-            <span>комиссии</span>
+            <b>{programs.length}</b>
+            <span>{plural(programs.length, "программа", "программы", "программ")}</span>
           </div>
         </div>
       </main>

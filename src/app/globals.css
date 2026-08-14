@@ -157,10 +157,18 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-variant-numeric: tabular-nums;
-  /* мягкое сияние в верхних углах: страница перестаёт быть плоским листом */
+  /* Три слоя вместо плоской заливки.
+     Сверху — миллиметровка: тематический фон для платформы про математику,
+     который при этом не спорит с текстом (её почти не видно, но лист
+     перестаёт быть пустым). Под ней — мягкое сияние в верхних углах.
+     Картинок нет намеренно: фотография на фоне формул мешает читать,
+     а фон должен делать страницу приветливой, а не занятой. */
   background-image:
+    linear-gradient(color-mix(in oklab, var(--line) 42%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--line) 42%, transparent) 1px, transparent 1px),
     radial-gradient(900px 480px at 12% -8%, color-mix(in oklab, var(--c-complex) 9%, transparent), transparent 70%),
     radial-gradient(760px 420px at 92% -4%, color-mix(in oklab, var(--c-matrices) 8%, transparent), transparent 68%);
+  background-size: 34px 34px, 34px 34px, auto, auto;
   background-attachment: fixed;
 }
 
@@ -1578,3 +1586,77 @@ h1 {
 }
 .roster-expandable[open] .roster-more { background: var(--surface-2); color: var(--ink-2); }
 .roster-expandable .ai { margin: 0 16px 16px; }
+
+/* ═══ приветливость: фон, шапка, витрина ═══════════════════════════════════
+   Правило, которому подчинена вся секция: фон делает страницу приветливой,
+   а не занятой. Ни один слой здесь не должен конкурировать за внимание
+   с формулой — иначе платформа про математику станет хуже читаться ровно
+   там, где читаемость важнее всего. */
+
+/* Миллиметровка не должна тянуться под текстом карточек: на непрозрачных
+   поверхностях она гасится их собственным фоном, но у полупрозрачных
+   секций её нужно снять явно. */
+.stem-card, .part-card, .conspectus, .explanation, .ai-answer {
+  background-clip: padding-box;
+}
+
+/* ── шапка с семью разделами ────────────────────────────────────────────
+   Разделов стало столько, что на ноутбуке они переносились на вторую строку
+   и ломали высоту шапки. Прокрутка вместо переноса: высота фиксирована,
+   а до дальних разделов можно домотать. */
+.nav-links {
+  display: flex; align-items: center; gap: 4px;
+  overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0; flex: 1;
+}
+.nav-links::-webkit-scrollbar { display: none; }
+.nav-links > a { white-space: nowrap; }
+.nav { flex-wrap: nowrap; }
+.nav-brand { flex: none; }
+.nav-right { flex: none; margin-left: auto; }
+
+/* ── витрина программ на главной ────────────────────────────────────────── */
+
+.landing-programs {
+  display: grid; gap: 12px; margin: 30px 0 8px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.landing-program {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 17px 19px; text-decoration: none; color: inherit;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  backdrop-filter: blur(6px);
+  transition: transform var(--calm), border-color var(--calm), box-shadow var(--calm);
+}
+.landing-program:hover {
+  transform: translateY(-3px); box-shadow: var(--sh-md);
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+}
+.landing-program-name { font-size: 15px; font-weight: 600; }
+.landing-program-count {
+  font-family: var(--mono); font-size: 12.5px; color: var(--accent);
+}
+
+/* Полоса под героем: то, что платформа умеет, одной строкой. */
+.hero-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 13px; border-radius: 999px;
+  font-size: 13px; color: var(--ink-2);
+  background: color-mix(in oklab, var(--surface) 82%, transparent);
+  border: 1px solid var(--line);
+}
+.hero-badge i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--dot, var(--brass)); font-style: normal;
+}
+
+@media (max-width: 720px) {
+  /* Сетка миллиметровки мельче экрана — на телефоне она превращается в шум. */
+  body { background-size: 26px 26px, 26px 26px, auto, auto; }
+  .nav { padding: 0 14px; gap: 10px; }
+  .landing-programs { grid-template-columns: 1fr 1fr; }
+  .landing-program { padding: 14px 15px; }
+}

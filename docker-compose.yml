@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: fm-postgres
+    environment:
+      POSTGRES_USER: fm
+      POSTGRES_PASSWORD: fm
+      POSTGRES_DB: fm
+    # 5439 снаружи: 5432/5433/5435/5436 на этой машине уже заняты
+    # другими проектами. Порт меняется здесь и в .env.local, больше нигде.
+    ports:
+      - "5439:5432"
+    volumes:
+      - fm-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fm -d fm"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  fm-pgdata:

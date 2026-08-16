@@ -55,23 +55,33 @@ async function StudentCabinet({
   return (
     <>
       <AppNav user={user} />
-      <main className="page" id="main">
-        <div className="cabinet-head">
-          <div className="avatar" aria-hidden>
-            {user.display_name.slice(0, 1)}
-          </div>
-          <div>
+      <main className="page page-wide dashboard-page" id="main">
+        <div className="dashboard-welcome">
+          <div className="dashboard-welcome-copy">
             <div className="eyebrow">Личный кабинет</div>
-            <h1>{user.display_name}</h1>
+            <h1>Привет, {user.display_name.split(" ")[0]}!</h1>
+            <p>Продолжим учиться? Здесь собран твой прогресс, домашние задания и ближайшие цели.</p>
+            <Link className="btn dashboard-cta" href={due.length > 0 ? `/learn/${due[0].id}` : "/bank"}>
+              {due.length > 0 ? "Продолжить обучение" : "Открыть практику"}
+              <span aria-hidden>↗</span>
+            </Link>
+          </div>
+          <div className="dashboard-illustration" aria-hidden>
+            <span className="math-orbit orbit-one">∑</span>
+            <span className="math-orbit orbit-two">π</span>
+            <span className="math-orbit orbit-three">∫</span>
+            <div className="math-core">ƒ<span>math</span></div>
           </div>
         </div>
 
         <div className="cabinet-stats">
           <div className="stat">
+            <span className="stat-icon stat-icon-yellow">◎</span>
             <b>{summary.items}</b>
             <span>{plural(summary.items, "задача решалась", "задачи решались", "задач решались")}</span>
           </div>
           <div className="stat">
+            <span className="stat-icon stat-icon-orange">★</span>
             <b>
               {summary.earned}
               <small>/{summary.possible}</small>
@@ -79,10 +89,12 @@ async function StudentCabinet({
             <span>баллов набрано</span>
           </div>
           <div className="stat">
+            <span className="stat-icon stat-icon-green">↗</span>
             <b>{pct(summary.accuracy)}</b>
             <span>точность по баллам</span>
           </div>
           <div className="stat">
+            <span className="stat-icon stat-icon-pink">⌁</span>
             <b>{summary.active_days}</b>
             <span>{plural(summary.active_days, "день занятий", "дня занятий", "дней занятий")}</span>
           </div>
@@ -103,7 +115,8 @@ async function StudentCabinet({
 
         {due.length > 0 && (
           <>
-            <h2 className="section-h">
+            <h2 className="section-h dashboard-section-h">
+              <span className="section-dot section-dot-pink" />
               Незакрытая домашка <span className="chip">{due.length}</span>
             </h2>
             <div className="cards-plain">
@@ -130,7 +143,8 @@ async function StudentCabinet({
 
         {mastery.length > 0 && (
           <>
-            <h2 className="section-h">
+            <h2 className="section-h dashboard-section-h">
+              <span className="section-dot section-dot-yellow" />
               Слабые темы <span className="chip">по баллам, не по числу задач</span>
             </h2>
             <div className="cards-plain">
@@ -167,7 +181,7 @@ async function StudentCabinet({
 
         {recent.length > 0 && (
           <>
-            <h2 className="section-h">Последние попытки</h2>
+            <h2 className="section-h dashboard-section-h"><span className="section-dot section-dot-blue" />Последние попытки</h2>
             <div className="cards-plain">
               {recent.map((r) => (
                 <Link
@@ -193,7 +207,7 @@ async function StudentCabinet({
 
         {classes.length > 0 && (
           <>
-            <h2 className="section-h">Мои классы</h2>
+            <h2 className="section-h dashboard-section-h"><span className="section-dot section-dot-green" />Мои классы</h2>
             <div className="cards-plain">
               {classes.map((c) => (
                 <div key={c.id} className="roster-row">

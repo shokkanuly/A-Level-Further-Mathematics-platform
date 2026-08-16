@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Serif, Manrope, JetBrains_Mono } from "next/font/google";
+import { Manrope, JetBrains_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -7,10 +7,8 @@ import "./globals.css";
 // Триада вместо одного Inter: засечный дисплей для заголовков даёт
 // академический характер, гротеск ведёт интерфейс, моноширинный держит
 // числа и коды схемы оценивания.
-const display = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
+const display = Manrope({
+  subsets: ["latin", "cyrillic"],
   display: "swap",
   variable: "--font-display",
 });

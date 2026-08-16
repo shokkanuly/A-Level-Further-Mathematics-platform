@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev -p 3100",
     "build": "next build",
-    "start": "next start -p 3100",
+    "start": "next start -p ${PORT:-3100}",
     "db:up": "docker compose up -d && node db/wait-for-db.mjs",
     "db:down": "docker compose down",
     "db:migrate": "node db/migrate.mjs",

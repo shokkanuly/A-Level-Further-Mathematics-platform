@@ -5,11 +5,15 @@ declare global {
   var __fmPool: Pool | undefined;
 }
 
+const dbUrl = process.env.DATABASE_URL ?? "postgres://fm:fm@localhost:5439/fm";
+const isLocal = dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1");
+
 const pool =
   global.__fmPool ??
   new Pool({
-    connectionString: process.env.DATABASE_URL ?? "postgres://fm:fm@localhost:5439/fm",
+    connectionString: dbUrl,
     max: 5,
+    ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
   });
 
 // В dev пул переживает hot reload, иначе каждое сохранение файла плодит соединения.
